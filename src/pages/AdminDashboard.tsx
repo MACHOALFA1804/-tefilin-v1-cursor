@@ -1,5 +1,8 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { supabase } from '../lib/supabaseClient';
+import { useNavigate } from 'react-router-dom';
 
 const Pill: React.FC<{ color?: string; children: React.ReactNode }> = ({ color = 'bg-cyan-500/10 text-cyan-300 border-cyan-500/30', children }) => (
   <span className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium border ${color}`}>{children}</span>
@@ -23,6 +26,41 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({ title
 );
 
 const AdminDashboard: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [totalVisitantes, setTotalVisitantes] = useState(0);
+  const [totalUsuarios, setTotalUsuarios] = useState(0);
+  const [totalMensagens, setTotalMensagens] = useState(0);
+  const [totalCultos, setTotalCultos] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      setLoading(true);
+
+      // Fetch total visitantes
+      const { count: visitantesCount, error: visitantesError } = await supabase
+        .from('visitantes')
+        .select('count', { count: 'exact', head: true });
+      if (!visitantesError) setTotalVisitantes(visitantesCount || 0);
+
+      // Fetch total users (from auth.users table)
+      const { count: usersCount, error: usersError } = await supabase.from('auth.users').select('count', { count: 'exact', head: true });
+      if (!usersError) setTotalUsuarios(usersCount || 0);
+
+      // Fetch total messages (assuming a 'mensagens' table)
+      const { count: mensagensCount, error: mensagensError } = await supabase.from('mensagens').select('count', { count: 'exact', head: true });
+      if (!mensagensError) setTotalMensagens(mensagensCount || 0);
+
+      // Fetch total cultos (assuming a 'cultos' table)
+      const { count: cultosCount, error: cultosError } = await supabase.from('cultos').select('count', { count: 'exact', head: true });
+      if (!cultosError) setTotalCultos(cultosCount || 0);
+
+      setLoading(false);
+    };
+    fetchCounts();
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
       {/* Header */}
@@ -37,7 +75,16 @@ const AdminDashboard: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-slate-300 text-sm">Admin Sistema</span>
-            <Link to="/" className="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 text-sm font-semibold hover:bg-rose-500/25">Sair</Link>
+            <Link
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate('/');
+              }}
+              className="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 text-sm font-semibold hover:bg-rose-500/25"
+              to="/"
+            >
+              Sair
+            </Link>
           </div>
         </div>
       </header>
@@ -58,8 +105,23 @@ const AdminDashboard: React.FC = () => {
           {/* Tabs */}
           <div className="mt-4 overflow-x-auto">
             <nav className="flex gap-2 text-sm">
-              {['Home','Visitantes','Users','Cultos','Msgs','PDF','API','Backup'].map((t, i) => (
-                <button key={t} className={`px-3 py-1.5 rounded-lg border ${i===0? 'bg-slate-900 text-white border-cyan-500/40' : 'text-slate-300 border-slate-700 hover:border-cyan-500/30 hover:text-white'}`}>{t}</button>
+              {[
+                { label: 'Home', path: '/admin' },
+                { label: 'Visitantes', path: '/admin/visitantes' },
+                { label: 'Users', path: '/admin/users' },
+                { label: 'Cultos', path: '/admin/cultos' },
+                { label: 'Msgs', path: '/admin/msgs' },
+                { label: 'PDF', path: '/admin/pdf' },
+                { label: 'API', path: '/admin/api' },
+                { label: 'Backup', path: '/admin/backup' },
+              ].map((tab) => (
+                <Link
+                  key={tab.label}
+                  to={tab.path}
+                  className={`px-3 py-1.5 rounded-lg border ${location.pathname === tab.path ? 'bg-slate-900 text-white border-cyan-500/40' : 'text-slate-300 border-slate-700 hover:border-cyan-500/30 hover:text-white'}`}
+                >
+                  {tab.label}
+                </Link>
               ))}
             </nav>
           </div>
@@ -67,10 +129,17 @@ const AdminDashboard: React.FC = () => {
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 mb-6">
-          <StatCard icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm-9 9a9 9 0 0 1 18 0z"/></svg>} value={7} label="Visitantes" />
-          <StatCard icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11V7a4 4 0 1 0-8 0v4H4v10h16V11zM10 7a2 2 0 1 1 4 0v4h-4z"/></svg>} value={3} label="Usuários" />
-          <StatCard icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v14H5.17L4 19.17V4zm3 3v2h10V7H7zm0 4v2h10v-2H7z"/></svg>} value={342} label="Mensagens" />
-          <StatCard icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3h14v4H5zM3 9h18v12H3z"/></svg>} value={6} label="Cultos" />
+          {loading ? (
+            <p>Carregando dados...</p>
+          ) : (
+            <>
+              <StatCard icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm-9 9a9 9 0 0 1 18 0z"/></svg>} value={totalVisitantes} label="Visitantes" />
+              <StatCard icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M16 11V7a4 4 0 1 0-8 0v4H4v10h16V11zM10 7a2 2 0 1 1 4 0v4h-4z"/></svg>} value={totalUsuarios} label="Usuários" />
+              <StatCard icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v14H5.17L4 19.17V4zm3 3v2h10V7H7zm0 4v2h10v-2H7z"/></svg>} value={totalMensagens} label="Mensagens" />
+              <StatCard icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M5 3h14v4H5zM3 9h18v12H3z"/></svg>} value={totalCultos} label="Cultos" />
+            </>
+          )}
+          <div className="hidden md:block" />
         </div>
 
         {/* Bottom grid */}

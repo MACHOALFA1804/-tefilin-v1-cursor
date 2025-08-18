@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase, VisitanteRow } from '../lib/supabaseClient';
 
 const Chip: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -17,26 +17,72 @@ const TableCell: React.FC<{ children: React.ReactNode; className?: string; colSp
 const RecepcaoDashboard: React.FC = () => {
   const [rows, setRows] = useState<VisitanteRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [newVisitante, setNewVisitante] = useState({
+    nome: '',
+    telefone: '',
+    tipo: 'Cristão', // Default value
+    status: 'Aguardando', // Default status for new visitors
+  });
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState('Todos os tipos');
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    let query = supabase
+      .from('visitantes')
+      .select('id, nome, telefone, tipo, status, created_at')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (searchTerm) {
+      query = query.ilike('nome', `%${searchTerm}%`);
+    }
+
+    if (filterType !== 'Todos os tipos') {
+      query = query.eq('tipo', filterType);
+    }
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Erro ao carregar visitantes:', error);
+    } else {
+      setRows(data || []);
+    }
+
+    setLoading(false);
+  }, [searchTerm, filterType]); // Depend on searchTerm and filterType
 
   useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from('visitantes')
-        .select('id, nome, telefone, tipo, status, created_at')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) {
-        console.error('Erro ao carregar visitantes:', error);
-      } else {
-        setRows(data || []);
-      }
-
-      setLoading(false);
-    };
     load();
-  }, []);
+  }, [load]); // Depend on load function
+
+  const handleNewVisitanteChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setNewVisitante((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleAddVisitante = async () => {
+    if (!newVisitante.nome || !newVisitante.telefone) {
+      alert('Nome e Telefone são obrigatórios!');
+      return;
+    }
+
+    const { error } = await supabase.from('visitantes').insert([newVisitante]);
+
+    if (error) {
+      console.error('Erro ao adicionar visitante:', error);
+      alert('Erro ao adicionar visitante.');
+    } else {
+      alert('Visitante adicionado com sucesso!');
+      setNewVisitante({ nome: '', telefone: '', tipo: 'Cristão', status: 'Aguardando' }); // Clear form
+      load(); // Call load directly to refresh the list
+    }
+  };
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
@@ -53,8 +99,12 @@ const RecepcaoDashboard: React.FC = () => {
           <div className="flex items-center gap-3">
             <span className="text-slate-300 text-sm">recepcionista</span>
             <Link
-              to="/"
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate('/');
+              }}
               className="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 text-sm font-semibold hover:bg-rose-500/25"
+              to="/"
             >
               Sair
             </Link>
@@ -76,6 +126,42 @@ const RecepcaoDashboard: React.FC = () => {
               <p className="text-slate-400 text-sm">Registrar novo visitante - Comunicação apenas via WhatsApp</p>
             </div>
           </div>
+          {/* Formulário de Cadastro */}
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              name="nome"
+              value={newVisitante.nome}
+              onChange={handleNewVisitanteChange}
+              placeholder="Nome do Visitante"
+              className="px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+            />
+            <input
+              type="text"
+              name="telefone"
+              value={newVisitante.telefone}
+              onChange={handleNewVisitanteChange}
+              placeholder="Telefone (apenas números)"
+              className="px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+            />
+            <select
+              name="tipo"
+              value={newVisitante.tipo}
+              onChange={handleNewVisitanteChange}
+              className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+            >
+              <option>Cristão</option>
+              <option>Não Cristão</option>
+              <option>Pregador</option>
+              <option>Outro</option>
+            </select>
+            <button
+              onClick={handleAddVisitante}
+              className="px-3 py-2 rounded-lg bg-cyan-400 text-slate-900 font-bold shadow-md shadow-cyan-500/30 hover:bg-cyan-300 w-full"
+            >
+              Adicionar Visitante
+            </button>
+          </div>
         </div>
 
         {/* Lista de Visitantes */}
@@ -83,6 +169,8 @@ const RecepcaoDashboard: React.FC = () => {
           <div className="flex items-center gap-3 mb-4">
             <input
               className="flex-1 px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar visitantes..."
             />
             <button className="px-3 py-2 rounded-lg bg-slate-900 text-slate-300 border border-slate-700">

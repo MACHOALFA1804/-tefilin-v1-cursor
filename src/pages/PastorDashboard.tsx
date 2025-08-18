@@ -1,5 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { supabase, VisitanteRow } from '../lib/supabaseClient';
+import { useNavigate } from 'react-router-dom';
 
 const Stat: React.FC<{ label: string; value: number }> = ({ label, value }) => (
   <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5">
@@ -23,16 +26,78 @@ const Tag: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 const PastorDashboard: React.FC = () => {
-  const visitantesHoje = [
-    { nome: 'José', tipo: 'Cristão', tel: '4199876534', recente: '2 dias atrás' },
-    { nome: 'João', tipo: 'Pregador', tel: '4199876539', recente: '6 dias atrás' },
-    { nome: 'Jose', tipo: 'Não Cristão', tel: '41987777777', recente: '7 dias atrás' },
-    { nome: 'sandra', tipo: 'Cristão', tel: '41998162389', recente: '7 dias atrás' },
-    { nome: 'emerson', tipo: 'Não Cristão', tel: '41997539084', recente: '7 dias atrás' },
-    { nome: 'Maria Silva', tipo: 'Não Cristão', tel: '11988776655', recente: '7 dias atrás' },
-  ];
+  const navigate = useNavigate();
+  const [visitantesHoje, setVisitantesHoje] = useState<VisitanteRow[]>([]);
+  const [visitantesPendentes, setVisitantesPendentes] = useState<VisitanteRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [totalVisitantes, setTotalVisitantes] = useState(0);
+  const [aguardandoVisita, setAguardandoVisita] = useState(0);
+  const [visitados, setVisitados] = useState(0);
+  const [novosMembros, setNovosMembros] = useState(0);
 
-  const pendentes = visitantesHoje;
+  useEffect(() => {
+    const fetchVisitantes = async () => {
+      setLoading(true);
+      // Fetch visitantes for "Visitantes Chegaram Hoje" (e.g., created today)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const tomorrow = new Date(today);
+      tomorrow.setDate(today.getDate() + 1);
+
+      const { data: todayData, error: todayError } = await supabase
+        .from('visitantes')
+        .select('id, nome, tipo, telefone, status, created_at')
+        .gte('created_at', today.toISOString())
+        .lt('created_at', tomorrow.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (todayError) {
+        console.error('Erro ao carregar visitantes de hoje:', todayError);
+      } else {
+        setVisitantesHoje(todayData || []);
+      }
+
+      // Fetch visitantes for "Precisam de Visita Pastoral" (e.g., status 'Pendente')
+      const { data: pendentesData, error: pendentesError } = await supabase
+        .from('visitantes')
+        .select('id, nome, tipo, telefone, status, created_at')
+        .eq('status', 'Pendente') // Assuming a 'Pendente' status
+        .order('created_at', { ascending: false });
+
+      if (pendentesError) {
+        console.error('Erro ao carregar visitantes pendentes:', pendentesError);
+      } else {
+        setVisitantesPendentes(pendentesData || []);
+      }
+
+      // Fetch counts for Stats
+      const { count: totalCount, error: totalError } = await supabase
+        .from('visitantes')
+        .select('count', { count: 'exact', head: true });
+      if (!totalError) setTotalVisitantes(totalCount || 0);
+
+      const { count: aguardandoCount, error: aguardandoError } = await supabase
+        .from('visitantes')
+        .select('count', { count: 'exact', head: true })
+        .eq('status', 'Aguardando Visita'); // Assuming 'Aguardando Visita' status
+      if (!aguardandoError) setAguardandoVisita(aguardandoCount || 0);
+
+      const { count: visitadosCount, error: visitadosError } = await supabase
+        .from('visitantes')
+        .select('count', { count: 'exact', head: true })
+        .eq('status', 'Visitado'); // Assuming 'Visitado' status
+      if (!visitadosError) setVisitados(visitadosCount || 0);
+
+      const { count: novosMembrosCount, error: novosMembrosError } = await supabase
+        .from('visitantes')
+        .select('count', { count: 'exact', head: true })
+        .eq('tipo', 'Novo Membro'); // Assuming 'Novo Membro' type
+      if (!novosMembrosError) setNovosMembros(novosMembrosCount || 0);
+
+      setLoading(false);
+    };
+    fetchVisitantes();
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100">
@@ -46,7 +111,16 @@ const PastorDashboard: React.FC = () => {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-slate-300 text-sm">Pastor João</span>
-            <Link to="/" className="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 text-sm font-semibold hover:bg-rose-500/25">Sair</Link>
+            <Link
+              onClick={async () => {
+                await supabase.auth.signOut();
+                navigate('/');
+              }}
+              className="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 text-sm font-semibold hover:bg-rose-500/25"
+              to="/"
+            >
+              Sair
+            </Link>
           </div>
         </div>
       </header>
@@ -54,60 +128,66 @@ const PastorDashboard: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
-          <Stat label="Total Visitantes" value={7} />
-          <Stat label="Aguardando Visita" value={6} />
-          <Stat label="Visitados" value={0} />
-          <Stat label="Novos Membros" value={0} />
+          <Stat label="Total Visitantes" value={totalVisitantes} />
+          <Stat label="Aguardando Visita" value={aguardandoVisita} />
+          <Stat label="Visitados" value={visitados} />
+          <Stat label="Novos Membros" value={novosMembros} />
           <div className="hidden md:block" />
         </div>
 
         {/* Visitantes Chegaram Hoje */}
         <Card title="Visitantes Chegaram Hoje" right={<span className="text-slate-400 text-sm">Tempo Real</span>}>
           <div className="space-y-3">
-            {visitantesHoje.map((v, i) => (
-              <div key={i} className="rounded-lg border border-slate-700 p-4 bg-slate-900/40">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white font-semibold">{v.nome}</span>
-                    <Tag>{v.tipo}</Tag>
+            {loading ? (
+              <p className="text-slate-400">Carregando visitantes de hoje...</p>
+            ) : visitantesHoje.length === 0 ? (
+              <p className="text-slate-400">Nenhum visitante chegou hoje.</p>
+            ) : (
+              visitantesHoje.map((v) => (
+                <div key={v.id} className="rounded-lg border border-slate-700 p-4 bg-slate-900/40">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-semibold">{v.nome}</span>
+                      <Tag>{v.tipo}</Tag>
+                    </div>
+                    <div className="text-slate-400 text-sm">{new Date(v.created_at!).toLocaleDateString()}</div>
                   </div>
-                  <div className="text-slate-400 text-sm">{v.recente}</div>
+                  <div className="text-slate-400 text-sm mt-1">{v.telefone}</div>
                 </div>
-                <div className="text-slate-400 text-sm mt-1">{v.tel}</div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </Card>
 
         {/* Precisam de Visita Pastoral */}
         <Card title="Precisam de Visita Pastoral" right={<button className="px-3 py-2 rounded-lg bg-cyan-400 text-slate-900 font-bold">WhatsApp Todos</button>}>
           <div className="space-y-3">
-            {pendentes.map((v, i) => (
-              <div key={i} className="rounded-lg border border-slate-700 p-4 bg-slate-900/40 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-white font-semibold">{v.nome}</span>
-                  <Tag>Pendente</Tag>
+            {loading ? (
+              <p className="text-slate-400">Carregando visitantes pendentes...</p>
+            ) : visitantesPendentes.length === 0 ? (
+              <p className="text-slate-400">Nenhum visitante pendente.</p>
+            ) : (
+              visitantesPendentes.map((v) => (
+                <div key={v.id} className="rounded-lg border border-slate-700 p-4 bg-slate-900/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-semibold">{v.nome}</span>
+                    <Tag>{v.status}</Tag>
+                  </div>
+                  <div className="text-slate-400 text-sm">{v.tipo}</div>
                 </div>
-                <div className="text-slate-400 text-sm">{v.tipo}</div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </Card>
 
         {/* Grid inferior */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
           <Card title="Visitas Recentes">
-            <div className="space-y-3">
-              {['emerson','José','João Silva'].map((n, i) => (
-                <div key={i} className="rounded-lg border border-slate-700 p-4 bg-slate-900/40">
-                  <div className="flex items-center justify-between">
-                    <span className="text-white font-semibold">{n}</span>
-                    <Tag>{i === 1 ? 'Agendada' : 'Concluída'}</Tag>
-                  </div>
-                  <input className="mt-2 w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700" placeholder="Observações" />
-                </div>
-              ))}
-            </div>
+            {loading ? (
+              <p className="text-slate-400">Carregando visitas recentes...</p>
+            ) : (
+              <p className="text-slate-400">Implementar fetching de visitas recentes</p>
+            )}
           </Card>
           <Card title="Registrar Nova Visita">
             <div className="grid grid-cols-1 gap-3">

@@ -1,15 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabaseClient";
 
 interface LoginCredentials {
   email: string;
   password: string;
-}
-
-interface User {
-  email: string;
-  password: string;
-  role: "admin" | "pastor" | "recepcionista";
 }
 
 const LoginDashboard: React.FC = () => {
@@ -17,12 +12,6 @@ const LoginDashboard: React.FC = () => {
     email: "",
     password: "",
   });
-
-  const users: User[] = [
-    { email: "admin@igreja.com", password: "123456", role: "admin" },
-    { email: "pastor@igreja.com", password: "123456", role: "pastor" },
-    { email: "recepcao@igreja.com", password: "123456", role: "recepcionista" },
-  ];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -34,23 +23,44 @@ const LoginDashboard: React.FC = () => {
 
   const navigate = useNavigate();
 
-  const handleLogin = () => {
-    const user = users.find(
-      (u) =>
-        u.email === credentials.email && u.password === credentials.password
-    );
+  const handleLogin = async () => {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password,
+    });
 
-    if (user) {
-      setCredentials({ email: "", password: "" });
-      if (user.role === "admin") {
-        navigate("/admin");
-      } else if (user.role === "pastor") {
-        navigate("/pastor");
-      } else {
-        navigate("/recepcao");
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    if (data.user) {
+      // Try to fetch the user's role from a 'profiles' table
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("user_id", data.user.id)
+        .single();
+
+      if (profileError || !profile) {
+        console.error("Erro ao buscar perfil do usuário:", profileError?.message || "Perfil não encontrado.");
+        alert("Erro ao buscar informações do usuário. Tente novamente ou entre em contato com o suporte.");
+        await supabase.auth.signOut(); // Log out the user if role can't be fetched
+        return;
       }
-    } else {
-      alert("Email ou senha incorretos!");
+
+      setCredentials({ email: "", password: "" });
+
+      if (profile.role === "admin") {
+        navigate("/admin");
+      } else if (profile.role === "pastor") {
+        navigate("/pastor");
+      } else if (profile.role === "recepcionista") {
+        navigate("/recepcao");
+      } else {
+        alert("Você não tem permissão para acessar o sistema.");
+        await supabase.auth.signOut();
+      }
     }
   };
 
@@ -184,32 +194,6 @@ const LoginDashboard: React.FC = () => {
     letterSpacing: "1px",
   };
 
-  const credentialsStyle: React.CSSProperties = {
-    position: "fixed",
-    bottom: "12px",
-    right: "12px",
-    backgroundColor: "rgba(30, 41, 59, 0.9)",
-    backdropFilter: "blur(10px)",
-    borderRadius: "10px",
-    padding: "8px",
-    border: "1px solid rgba(71, 85, 105, 0.5)",
-    boxShadow: "0 6px 16px rgba(0, 0, 0, 0.25)",
-    maxWidth: "200px",
-  };
-
-  const credentialsTitleStyle: React.CSSProperties = {
-    color: "#94a3b8",
-    fontSize: "8px",
-    fontWeight: "600",
-    marginBottom: "4px",
-  };
-
-  const credentialsListStyle: React.CSSProperties = {
-    fontSize: "8px",
-    color: "#64748b",
-    lineHeight: "1.3",
-  };
-
   return (
     <div style={containerStyle}>
       <div style={{ width: "100%", maxWidth: "280px" }}>
@@ -293,16 +277,6 @@ const LoginDashboard: React.FC = () => {
 
         <div style={footerStyle}>
           <p style={devTextStyle}>DEV EMERSON 2025</p>
-        </div>
-      </div>
-
-      {/* Credentials Panel */}
-      <div style={credentialsStyle}>
-        <p style={credentialsTitleStyle}>Credenciais para teste:</p>
-        <div style={credentialsListStyle}>
-          <p>• Admin: admin@igreja.com / 123456</p>
-          <p>• Pastor: pastor@igreja.com / 123456</p>
-          <p>• Recepção: recepcao@igreja.com / 123456</p>
         </div>
       </div>
     </div>

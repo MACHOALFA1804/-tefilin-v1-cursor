@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, VisitanteRow } from '../../lib/supabaseClient';
+import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { reportService, ReportData, downloadPDF, downloadCSV } from '../../services/reportService';
 
 interface RelatoriosViewProps {
   onBack: () => void;
@@ -131,56 +134,84 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
     }));
   };
 
-  const gerarRelatorioCSV = () => {
+  const gerarRelatorioCSV = async () => {
     if (visitantes.length === 0) {
       alert('Nenhum dado para gerar relatório!');
       return;
     }
 
-    const headers = ['Nome', 'Telefone', 'Tipo', 'Status', 'Data de Cadastro'];
-    const csvContent = [
-      headers.join(','),
-      ...visitantes.map(v => [
-        `"${v.nome || ''}"`,
-        `"${v.telefone || ''}"`,
-        `"${v.tipo || ''}"`,
-        `"${v.status || ''}"`,
-        `"${v.created_at ? new Date(v.created_at).toLocaleDateString('pt-BR') : ''}"`
-      ].join(','))
-    ].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    link.setAttribute('href', url);
-    link.setAttribute('download', `relatorio-visitantes-${new Date().toISOString().split('T')[0]}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  const gerarRelatorioPDF = async () => {
     setGerandoRelatorio(true);
     
     try {
-      // Simular geração de PDF (aqui você integraria com uma biblioteca como jsPDF)
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const reportData: ReportData = {
+        title: 'Relatório de Visitantes',
+        subtitle: `Período: ${filtros.dataInicio ? format(new Date(filtros.dataInicio), 'dd/MM/yyyy', { locale: ptBR }) : 'Início'} até ${filtros.dataFim ? format(new Date(filtros.dataFim), 'dd/MM/yyyy', { locale: ptBR }) : 'Fim'}`,
+        period: {
+          start: filtros.dataInicio ? new Date(filtros.dataInicio) : startOfMonth(subMonths(new Date(), 1)),
+          end: filtros.dataFim ? new Date(filtros.dataFim) : endOfMonth(new Date())
+        },
+        data: visitantes,
+        metadata: {
+          totalRegistros: visitantes.length,
+          filtrosAplicados: [
+            filtros.tipo !== 'Todos' ? `Tipo: ${filtros.tipo}` : '',
+            filtros.status !== 'Todos' ? `Status: ${filtros.status}` : ''
+          ].filter(Boolean),
+          geradoPor: 'Pastor Dashboard',
+          dataGeracao: new Date()
+        }
+      };
+
+      const csvContent = reportService.generateCSV(reportData, 'visitors');
+      const filename = `relatorio_visitantes_${format(new Date(), 'dd-MM-yyyy_HH-mm', { locale: ptBR })}.csv`;
       
-      // Por enquanto, vamos criar um HTML estruturado que pode ser impresso
-      const relatorioHTML = gerarHTMLRelatorio();
-      
-      const novaJanela = window.open('', '_blank');
-      if (novaJanela) {
-        novaJanela.document.write(relatorioHTML);
-        novaJanela.document.close();
-        novaJanela.print();
-      }
-      
-      alert('Relatório PDF preparado para impressão!');
+      downloadCSV(csvContent, filename);
+      alert('Relatório CSV gerado com sucesso!');
       
     } catch (error) {
-      console.error('Erro ao gerar PDF:', error);
+      console.error('Erro ao gerar relatório CSV:', error);
+      alert('Erro ao gerar relatório CSV');
+    } finally {
+      setGerandoRelatorio(false);
+    }
+  };
+
+  const gerarRelatorioPDF = async () => {
+    if (visitantes.length === 0) {
+      alert('Nenhum dado para gerar relatório!');
+      return;
+    }
+
+    setGerandoRelatorio(true);
+    
+    try {
+      const reportData: ReportData = {
+        title: 'Relatório de Visitantes',
+        subtitle: `Período: ${filtros.dataInicio ? format(new Date(filtros.dataInicio), 'dd/MM/yyyy', { locale: ptBR }) : 'Início'} até ${filtros.dataFim ? format(new Date(filtros.dataFim), 'dd/MM/yyyy', { locale: ptBR }) : 'Fim'}`,
+        period: {
+          start: filtros.dataInicio ? new Date(filtros.dataInicio) : startOfMonth(subMonths(new Date(), 1)),
+          end: filtros.dataFim ? new Date(filtros.dataFim) : endOfMonth(new Date())
+        },
+        data: visitantes,
+        metadata: {
+          totalRegistros: visitantes.length,
+          filtrosAplicados: [
+            filtros.tipo !== 'Todos' ? `Tipo: ${filtros.tipo}` : '',
+            filtros.status !== 'Todos' ? `Status: ${filtros.status}` : ''
+          ].filter(Boolean),
+          geradoPor: 'Pastor Dashboard',
+          dataGeracao: new Date()
+        }
+      };
+
+      const pdfBlob = await reportService.generateVisitorsReportPDF(reportData);
+      const filename = `relatorio_visitantes_${format(new Date(), 'dd-MM-yyyy_HH-mm', { locale: ptBR })}.pdf`;
+      
+      downloadPDF(pdfBlob, filename);
+      alert('Relatório PDF gerado com sucesso!');
+      
+    } catch (error) {
+      console.error('Erro ao gerar relatório PDF:', error);
       alert('Erro ao gerar relatório PDF');
     } finally {
       setGerandoRelatorio(false);

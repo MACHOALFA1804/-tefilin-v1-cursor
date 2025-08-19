@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, VisitanteRow, MensagemRow } from '../../lib/supabaseClient';
+import { useWhatsApp, churchTemplates } from '../../services/whatsappService';
 
 interface EnvioMensagensViewProps {
   onBack: () => void;
@@ -55,6 +56,8 @@ const EnvioMensagensView: React.FC<EnvioMensagensViewProps> = ({ onBack }) => {
   const [filtroTipo, setFiltroTipo] = useState('Todos');
   const [searchTerm, setSearchTerm] = useState('');
   const [enviando, setEnviando] = useState(false);
+  
+  const { service: whatsappService, isConfigured, validatePhone } = useWhatsApp();
 
   const loadData = async () => {
     setLoading(true);

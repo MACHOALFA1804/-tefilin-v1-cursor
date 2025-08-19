@@ -1,27 +1,48 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
 import CadastroVisitantesView from '../components/recepcao/CadastroVisitantesView';
 import HistoricoVisitantesView from '../components/recepcao/HistoricoVisitantesView';
+import ResponsiveLayout from '../components/layout/ResponsiveLayout';
+import { useResponsiveClasses } from '../hooks/useResponsive';
 
 type ActiveView = 'dashboard' | 'cadastro' | 'historico';
 
 const RecepcaoDashboard: React.FC = () => {
-  const navigate = useNavigate();
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
+  const classes = useResponsiveClasses();
 
   // Renderizar view baseado na seleção
   const renderContent = () => {
     switch (activeView) {
       case 'cadastro':
-        return <CadastroVisitantesView onBack={() => setActiveView('dashboard')} />;
+        return (
+          <ResponsiveLayout
+            title="Cadastro de Visitantes"
+            subtitle="Registrar novos visitantes na igreja"
+            showBackButton
+            onBack={() => setActiveView('dashboard')}
+          >
+            <CadastroVisitantesView onBack={() => setActiveView('dashboard')} />
+          </ResponsiveLayout>
+        );
       case 'historico':
-        return <HistoricoVisitantesView onBack={() => setActiveView('dashboard')} />;
+        return (
+          <ResponsiveLayout
+            title="Histórico de Visitantes"
+            subtitle="Visualizar e gerenciar visitantes cadastrados"
+            showBackButton
+            onBack={() => setActiveView('dashboard')}
+          >
+            <HistoricoVisitantesView onBack={() => setActiveView('dashboard')} />
+          </ResponsiveLayout>
+        );
       default:
         return (
-          <main className="max-w-7xl mx-auto px-4 py-6">
+          <ResponsiveLayout
+            title="Dashboard de Recepção"
+            subtitle="Gerenciamento de visitantes da igreja"
+          >
             {/* Dashboard de Navegação */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className={classes.grid.cards}>
               {/* Cadastrar Visitantes */}
               <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-6 hover:bg-slate-800/80 transition-colors">
                 <div className="flex items-center gap-4 mb-4">
@@ -93,54 +114,12 @@ const RecepcaoDashboard: React.FC = () => {
             </div>
 
             <footer className="text-center text-cyan-400 text-xs mt-10">DEV EMERSON 2025</footer>
-          </main>
+          </ResponsiveLayout>
         );
     }
   };
 
-  return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
-      {/* Header */}
-      <header className="border-b border-cyan-500/30 bg-slate-900/80 sticky top-0 backdrop-blur z-20">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-cyan-400 text-slate-900 font-black grid place-items-center">iA</div>
-            <h1 className="text-lg md:text-xl font-bold">
-              {activeView === 'dashboard' ? 'Recepção - TEFILIN v1' : 
-               activeView === 'cadastro' ? 'Cadastro de Visitantes' : 
-               'Histórico de Visitantes'}
-            </h1>
-            <span className="hidden md:inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border border-cyan-500/30 text-cyan-300 bg-cyan-500/10">
-              "E tudo quanto fizerdes, fazei-o de todo o coração, como ao Senhor" - Col 3:23
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            {activeView !== 'dashboard' && (
-              <button
-                onClick={() => setActiveView('dashboard')}
-                className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 text-sm font-semibold hover:bg-slate-600"
-              >
-                ← Dashboard
-              </button>
-            )}
-            <span className="text-slate-300 text-sm">recepcionista</span>
-            <Link
-              onClick={async () => {
-                await supabase.auth.signOut();
-                navigate('/');
-              }}
-              className="px-3 py-1.5 rounded-lg bg-rose-500/15 text-rose-300 border border-rose-500/30 text-sm font-semibold hover:bg-rose-500/25"
-              to="/"
-            >
-              Sair
-            </Link>
-          </div>
-        </div>
-      </header>
-
-      {renderContent()}
-    </div>
-  );
+  return renderContent();
 };
 
 export default RecepcaoDashboard;

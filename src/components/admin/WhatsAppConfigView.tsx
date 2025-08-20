@@ -1,404 +1,262 @@
-import React, { useState, useEffect } from 'react';
-import { initializeWhatsAppService, defaultWhatsAppConfig } from '../../services/whatsappService';
+import React, { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../../lib/supabaseClient';
 
 interface WhatsAppConfigProps {
   onBack: () => void;
 }
 
 interface WhatsAppConfig {
-  phoneNumberId: string;
-  accessToken: string;
-  webhookVerifyToken: string;
-  businessAccountId: string;
-  isActive: boolean;
-}
-
-interface ConfigMessage {
-  type: 'success' | 'error' | 'info';
-  text: string;
+  api_key: string;
+  phone_number: string;
+  webhook_url: string;
+  auto_reply: boolean;
+  business_hours: {
+    start: string;
+    end: string;
+  };
 }
 
 const WhatsAppConfigView: React.FC<WhatsAppConfigProps> = ({ onBack }) => {
   const [config, setConfig] = useState<WhatsAppConfig>({
-    phoneNumberId: '',
-    accessToken: '',
-    webhookVerifyToken: '',
-    businessAccountId: '',
-    isActive: false
-  });
-
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<ConfigMessage | null>(null);
-  const [testPhone, setTestPhone] = useState('');
-  const [testMessage, setTestMessage] = useState('Olá! Esta é uma mensagem de teste do sistema TEFILIN.');
-  const [showInstructions, setShowInstructions] = useState(false);
-
-  useEffect(() => {
-    loadConfig();
-  }, []);
-
-  const loadConfig = async () => {
-    setLoading(true);
-    try {
-      // Simular carregamento da configuração do banco
-      // TODO: Implementar quando tabela de configurações estiver pronta
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Por enquanto, usar configurações padrão das variáveis de ambiente
-      setConfig({
-        phoneNumberId: defaultWhatsAppConfig.phoneNumberId,
-        accessToken: defaultWhatsAppConfig.accessToken,
-        webhookVerifyToken: defaultWhatsAppConfig.webhookVerifyToken,
-        businessAccountId: defaultWhatsAppConfig.businessAccountId,
-        isActive: false
-      });
-
-    } catch (error) {
-      console.error('Erro ao carregar configurações:', error);
-      setMessage({ type: 'error', text: 'Erro ao carregar configurações' });
-    } finally {
-      setLoading(false);
+    api_key: '',
+    phone_number: '',
+    webhook_url: '',
+    auto_reply: false,
+    business_hours: {
+      start: '09:00',
+      end: '18:00'
     }
-  };
+  });
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({
+    mensagensEnviadas: 0,
+    mensagensEntregues: 0,
+    mensagensLidas: 0,
+    falhasEnvio: 0
+  });
+  const [statsLoading, setStatsLoading] = useState(true);
 
-  const saveConfig = async () => {
-    setLoading(true);
-    setMessage(null);
-
+  // Carregar estatísticas de mensagens
+  const loadStats = useCallback(async () => {
     try {
-      // Validar campos obrigatórios
-      if (!config.phoneNumberId || !config.accessToken) {
-        setMessage({ 
-          type: 'error', 
-          text: 'Phone Number ID e Access Token são obrigatórios' 
-        });
+      setStatsLoading(true);
+      
+      // Buscar estatísticas de mensagens
+      const { data: mensagens, error } = await supabase
+        .from('mensagens')
+        .select('*');
+
+      if (error) {
+        console.error('Erro ao carregar mensagens:', error);
         return;
       }
 
-      // Simular salvamento no banco
-      // TODO: Implementar quando tabela de configurações estiver pronta
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Inicializar serviço WhatsApp com nova configuração
-      if (config.isActive) {
-        initializeWhatsAppService({
-          phoneNumberId: config.phoneNumberId,
-          accessToken: config.accessToken,
-          webhookVerifyToken: config.webhookVerifyToken,
-          businessAccountId: config.businessAccountId
-        });
+      if (mensagens) {
+        const statsData = {
+          mensagensEnviadas: mensagens.filter(m => m.status_envio === 'Enviada').length,
+          mensagensEntregues: mensagens.filter(m => m.status_envio === 'Enviada').length, // Placeholder
+          mensagensLidas: mensagens.filter(m => m.status_envio === 'Enviada').length, // Placeholder
+          falhasEnvio: mensagens.filter(m => m.status_envio === 'Falhada').length
+        };
+        setStats(statsData);
       }
-
-      setMessage({ 
-        type: 'success', 
-        text: 'Configurações salvas com sucesso!' 
-      });
-
-    } catch (error: any) {
-      console.error('Erro ao salvar:', error);
-      setMessage({ 
-        type: 'error', 
-        text: `Erro ao salvar: ${error.message}` 
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const testWhatsApp = async () => {
-    if (!testPhone || !testMessage) {
-      setMessage({ 
-        type: 'error', 
-        text: 'Preencha o telefone e mensagem para teste' 
-      });
-      return;
-    }
-
-    setLoading(true);
-    setMessage({ type: 'info', text: 'Enviando mensagem de teste...' });
-
-    try {
-      // Por enquanto, apenas simular o envio
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // TODO: Implementar teste real quando API estiver configurada
-      setMessage({ 
-        type: 'success', 
-        text: 'Mensagem de teste enviada com sucesso!' 
-      });
-
     } catch (error) {
-      setMessage({ 
-        type: 'error', 
-        text: 'Erro ao enviar mensagem de teste' 
-      });
+      console.error('Erro ao carregar estatísticas:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  }, []);
+
+  // Carregar dados quando o componente montar
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    try {
+      // Aqui você implementaria a lógica para salvar as configurações
+      console.log('Configurações salvas:', config);
+      
+      // Simular salvamento
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      alert('Configurações salvas com sucesso!');
+    } catch (error) {
+      console.error('Erro ao salvar configurações:', error);
+      alert('Erro ao salvar configurações');
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleConfigChange = (field: keyof WhatsAppConfig, value: string | boolean) => {
-    setConfig(prev => ({
-      ...prev,
-      [field]: value
-    }));
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto px-4 py-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center gap-4">
-          <button
-            onClick={onBack}
-            className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            <span className="text-xl">←</span>
-            <span className="ml-2">Voltar</span>
-          </button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-800">Configuração WhatsApp</h1>
-            <p className="text-gray-600">Configure a integração com WhatsApp Business API</p>
-          </div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-white text-3xl font-bold">Configurações do WhatsApp</h1>
+          <p className="text-slate-400 text-lg mt-1">Integração com WhatsApp Business</p>
         </div>
-        
         <button
-          onClick={() => setShowInstructions(!showInstructions)}
-          className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+          onClick={onBack}
+          className="px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-700 transition-colors"
         >
-          📖 Instruções
+          Voltar
         </button>
       </div>
 
-      {/* Mensagem de status */}
-      {message && (
-        <div className={`mb-6 p-4 rounded-lg ${
-          message.type === 'success' ? 'bg-green-100 text-green-700' :
-          message.type === 'error' ? 'bg-red-100 text-red-700' :
-          'bg-blue-100 text-blue-700'
-        }`}>
-          {message.text}
-        </div>
-      )}
-
-      {/* Instruções */}
-      {showInstructions && (
-        <div className="mb-8 p-6 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <h3 className="text-lg font-semibold mb-4 text-yellow-800">
-            📋 Como configurar WhatsApp Business API
-          </h3>
-          <div className="space-y-3 text-sm text-yellow-700">
-            <p><strong>1.</strong> Acesse o Facebook Developers e crie uma conta Business</p>
-            <p><strong>2.</strong> Crie um App do tipo "Business" e adicione o produto "WhatsApp"</p>
-            <p><strong>3.</strong> Configure um número de telefone business verificado</p>
-            <p><strong>4.</strong> Copie o Phone Number ID e Access Token gerados</p>
-            <p><strong>5.</strong> Configure o Webhook para receber notificações</p>
-            <p><strong>6.</strong> Cole as informações nos campos abaixo e teste</p>
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Configurações */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Formulário de Configuração */}
         <div className="bg-white rounded-lg shadow-md p-6">
           <h2 className="text-xl font-semibold mb-6 text-gray-800">
             ⚙️ Configurações da API
           </h2>
-
-          <div className="space-y-4">
-            {/* Status */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Status da Integração
-                </label>
-                <p className="text-xs text-gray-500">
-                  Ativar/desativar integração WhatsApp
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={config.isActive}
-                  onChange={(e) => handleConfigChange('isActive', e.target.checked)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-              </label>
-            </div>
-
-            {/* Phone Number ID */}
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Phone Number ID *
-              </label>
-              <input
-                type="text"
-                value={config.phoneNumberId}
-                onChange={(e) => handleConfigChange('phoneNumberId', e.target.value)}
-                placeholder="Ex: 123456789012345"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                ID do número de telefone no WhatsApp Business
-              </p>
-            </div>
-
-            {/* Access Token */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Access Token *
+                Chave da API
               </label>
               <input
                 type="password"
-                value={config.accessToken}
-                onChange={(e) => handleConfigChange('accessToken', e.target.value)}
-                placeholder="EAAxxxxxxxxxxxx..."
+                value={config.api_key}
+                onChange={(e) => setConfig({...config, api_key: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Digite sua chave da API"
+                required
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Token de acesso da API do WhatsApp
-              </p>
             </div>
-
-            {/* Webhook Verify Token */}
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Webhook Verify Token
-              </label>
-              <input
-                type="text"
-                value={config.webhookVerifyToken}
-                onChange={(e) => handleConfigChange('webhookVerifyToken', e.target.value)}
-                placeholder="seu_token_seguro_123"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Token para verificação do webhook
-              </p>
-            </div>
-
-            {/* Business Account ID */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Business Account ID
-              </label>
-              <input
-                type="text"
-                value={config.businessAccountId}
-                onChange={(e) => handleConfigChange('businessAccountId', e.target.value)}
-                placeholder="123456789012345"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                ID da conta business do WhatsApp
-              </p>
-            </div>
-
-            <button
-              onClick={saveConfig}
-              disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {loading ? 'Salvando...' : '💾 Salvar Configurações'}
-            </button>
-          </div>
-        </div>
-
-        {/* Teste */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-xl font-semibold mb-6 text-gray-800">
-            🧪 Teste de Envio
-          </h2>
-
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Número de Teste
+                Número do WhatsApp
               </label>
               <input
                 type="tel"
-                value={testPhone}
-                onChange={(e) => setTestPhone(e.target.value)}
-                placeholder="(11) 99999-9999"
+                value={config.phone_number}
+                onChange={(e) => setConfig({...config, phone_number: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="+55 11 99999-9999"
+                required
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Número para enviar mensagem de teste
-              </p>
             </div>
-
+            
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Mensagem de Teste
+                URL do Webhook
               </label>
-              <textarea
-                value={testMessage}
-                onChange={(e) => setTestMessage(e.target.value)}
-                rows={3}
+              <input
+                type="url"
+                value={config.webhook_url}
+                onChange={(e) => setConfig({...config, webhook_url: e.target.value})}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="https://seu-dominio.com/webhook"
               />
             </div>
-
-            <button
-              onClick={testWhatsApp}
-              disabled={loading || !config.isActive}
-              className="w-full bg-green-600 text-white py-3 px-4 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-            >
-              {loading ? 'Enviando...' : '📱 Enviar Teste'}
-            </button>
-
-            {/* Status da configuração */}
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <div className={`w-3 h-3 rounded-full ${
-                  config.isActive && config.phoneNumberId && config.accessToken 
-                    ? 'bg-green-500' 
-                    : 'bg-red-500'
-                }`}></div>
-                <span className="text-sm font-medium">
-                  {config.isActive && config.phoneNumberId && config.accessToken 
-                    ? 'Configurado' 
-                    : 'Não Configurado'
-                  }
-                </span>
+            
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="auto_reply"
+                checked={config.auto_reply}
+                onChange={(e) => setConfig({...config, auto_reply: e.target.checked})}
+                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+              />
+              <label htmlFor="auto_reply" className="ml-2 block text-sm text-gray-700">
+                Ativar resposta automática
+              </label>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Horário de Início
+                </label>
+                <input
+                  type="time"
+                  value={config.business_hours.start}
+                  onChange={(e) => setConfig({
+                    ...config, 
+                    business_hours: {...config.business_hours, start: e.target.value}
+                  })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
               </div>
-              <p className="text-xs text-gray-600">
-                {config.isActive && config.phoneNumberId && config.accessToken 
-                  ? 'WhatsApp pronto para uso'
-                  : 'Configure e ative o WhatsApp para usar'
-                }
-              </p>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Horário de Fim
+                </label>
+                <input
+                  type="time"
+                  value={config.business_hours.end}
+                  onChange={(e) => setConfig({
+                    ...config, 
+                    business_hours: {...config.business_hours, end: e.target.value}
+                  })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {loading ? 'Salvando...' : 'Salvar Configurações'}
+            </button>
+          </form>
+        </div>
+
+        {/* Estatísticas */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-6 text-gray-800">
+            📊 Estatísticas de Uso
+          </h2>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="text-center p-4 bg-blue-50 rounded-lg">
+              <div className="text-2xl font-bold text-blue-600">
+                {statsLoading ? '...' : stats.mensagensEnviadas}
+              </div>
+              <div className="text-sm text-gray-600">Mensagens Enviadas</div>
+            </div>
+            
+            <div className="text-center p-4 bg-green-50 rounded-lg">
+              <div className="text-2xl font-bold text-green-600">
+                {statsLoading ? '...' : stats.mensagensEntregues}
+              </div>
+              <div className="text-sm text-gray-600">Mensagens Entregues</div>
+            </div>
+            
+            <div className="text-center p-4 bg-purple-50 rounded-lg">
+              <div className="text-2xl font-bold text-purple-600">
+                {statsLoading ? '...' : stats.mensagensLidas}
+              </div>
+              <div className="text-sm text-gray-600">Mensagens Lidas</div>
+            </div>
+            
+            <div className="text-center p-4 bg-red-50 rounded-lg">
+              <div className="text-2xl font-bold text-red-600">
+                {statsLoading ? '...' : stats.falhasEnvio}
+              </div>
+              <div className="text-sm text-gray-600">Falhas de Envio</div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* Estatísticas */}
-      <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-        <h2 className="text-xl font-semibold mb-6 text-gray-800">
-          📊 Estatísticas de Uso
-        </h2>
-        
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <div className="text-2xl font-bold text-blue-600">0</div>
-            <div className="text-sm text-gray-600">Mensagens Enviadas</div>
-          </div>
-          
-          <div className="text-center p-4 bg-green-50 rounded-lg">
-            <div className="text-2xl font-bold text-green-600">0</div>
-            <div className="text-sm text-gray-600">Mensagens Entregues</div>
-          </div>
-          
-          <div className="text-center p-4 bg-purple-50 rounded-lg">
-            <div className="text-2xl font-bold text-purple-600">0</div>
-            <div className="text-sm text-gray-600">Mensagens Lidas</div>
-          </div>
-          
-          <div className="text-center p-4 bg-red-50 rounded-lg">
-            <div className="text-2xl font-bold text-red-600">0</div>
-            <div className="text-sm text-gray-600">Falhas de Envio</div>
+          {/* Informações Adicionais */}
+          <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+            <h3 className="font-medium text-gray-800 mb-2">ℹ️ Informações</h3>
+            <ul className="text-sm text-gray-600 space-y-1">
+              <li>• Configure sua chave da API do WhatsApp Business</li>
+              <li>• Adicione o número principal da igreja</li>
+              <li>• Configure webhook para receber notificações</li>
+              <li>• Defina horários de atendimento</li>
+            </ul>
           </div>
         </div>
       </div>

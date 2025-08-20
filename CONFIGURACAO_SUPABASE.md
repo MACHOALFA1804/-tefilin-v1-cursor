@@ -70,31 +70,14 @@ REACT_APP_SUPABASE_ANON_KEY=sua_chave_aqui
 - Email: `admin@igreja.com`
 - Password: `123456`
 
-### **8. CONFIGURAR PERFIS**
+### **8. CONFIGURAR PERFIS (IMPORTANTE!)**
 1. Vá para **"SQL Editor"**
-2. Execute:
+2. Execute o arquivo `create_test_users.sql`:
 ```sql
--- Inserir perfis para os usuários criados
-INSERT INTO profiles (user_id, role, nome, email) VALUES
-(
-  (SELECT id FROM auth.users WHERE email = 'recepcionista@igreja.com'),
-  'recepcionista',
-  'Recepcionista',
-  'recepcionista@igreja.com'
-),
-(
-  (SELECT id FROM auth.users WHERE email = 'pastor@igreja.com'),
-  'pastor',
-  'Pastor',
-  'pastor@igreja.com'
-),
-(
-  (SELECT id FROM auth.users WHERE email = 'admin@igreja.com'),
-  'admin',
-  'Administrador',
-  'admin@igreja.com'
-);
+-- Cole o conteúdo do arquivo create_test_users.sql
 ```
+
+**⚠️ ATENÇÃO**: Este passo é OBRIGATÓRIO para resolver o erro "Papel de usuário não reconhecido"
 
 ---
 
@@ -115,6 +98,11 @@ INSERT INTO profiles (user_id, role, nome, email) VALUES
 ---
 
 ## 🚨 **PROBLEMAS COMUNS**
+
+### **Erro: "Papel de usuário não reconhecido"**
+- ✅ **SOLUÇÃO**: Execute o arquivo `create_test_users.sql` no Supabase
+- ✅ **VERIFICAÇÃO**: Confirme se a tabela `profiles` tem dados
+- ✅ **TESTE**: Execute `SELECT * FROM profiles;` no SQL Editor
 
 ### **Erro: "Invalid JWT"**
 - Verifique se as credenciais estão corretas
@@ -137,6 +125,7 @@ Se encontrar problemas:
 2. Confirme as credenciais do Supabase
 3. Teste a conexão no painel do Supabase
 4. Verifique se todas as tabelas foram criadas
+5. **IMPORTANTE**: Execute `create_test_users.sql` para criar os perfis
 
 ---
 
@@ -146,6 +135,7 @@ Após a configuração:
 - ✅ **Banco de dados** funcionando
 - ✅ **Autenticação** ativa
 - ✅ **Usuários de teste** criados
+- ✅ **Perfis configurados** corretamente
 - ✅ **Sistema 100% funcional**
 - ✅ **Todas as funcionalidades** disponíveis
 

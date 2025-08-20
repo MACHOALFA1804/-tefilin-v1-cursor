@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabaseClient';
+import { AuthService } from '../services/authService';
 
 const LoginDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState('recepcionista@igreja.com');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -15,39 +15,24 @@ const LoginDashboard: React.FC = () => {
     setError('');
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const authService = AuthService.getInstance();
+      const result = await authService.login(email, password);
 
-      if (error) {
-        setError(error.message);
+      if (!result.success) {
+        setError(result.error || 'Erro no login');
         return;
       }
 
-      if (data.user) {
-        // Buscar informações do usuário
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('role, nome')
-          .eq('user_id', data.user.id)
-          .single();
-
-        if (profileError) {
-          console.error('Erro ao buscar informações do usuário:', profileError);
-          setError('Erro ao buscar informações do usuário');
-          return;
-        }
-
+      if (result.user) {
         // Redirecionar baseado no papel do usuário
-        switch (profile.role) {
+        switch (result.user.role) {
           case 'admin':
             navigate('/admin');
             break;
           case 'pastor':
             navigate('/pastor');
             break;
-          case 'recepcao':
+          case 'recepcionista':
             navigate('/recepcao');
             break;
           default:

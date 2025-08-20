@@ -224,27 +224,53 @@ export class AuthService {
   // Carregar permissões do usuário
   private async loadUserPermissions(userId: string): Promise<UserWithPermissions | null> {
     try {
-      // TODO: Implementar quando tabela de usuários estiver criada
-      // Por enquanto, simular baseado no email
-      const { data: authUser } = await supabase.auth.getUser();
-      
-      if (!authUser.user) return null;
+      // Buscar perfil do usuário na tabela profiles
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role, nome, email, ativo')
+        .eq('user_id', userId)
+        .single();
 
-      // Determinar role baseado no email (temporário)
-      let role: UserRole = 'recepcionista';
-      const email = authUser.user.email?.toLowerCase() || '';
-      
-      if (email.includes('admin') || email.includes('pastor')) {
-        role = email.includes('admin') ? 'admin' : 'pastor';
+      if (profileError) {
+        console.error('Erro ao buscar perfil do usuário:', profileError);
+        return null;
+      }
+
+      if (!profile) {
+        console.error('Perfil não encontrado para o usuário:', userId);
+        return null;
+      }
+
+      // Verificar se o usuário está ativo
+      if (!profile.ativo) {
+        console.error('Usuário desativado:', userId);
+        return null;
+      }
+
+      // Mapear o role para o tipo correto
+      let role: UserRole;
+      switch (profile.role) {
+        case 'admin':
+          role = 'admin';
+          break;
+        case 'pastor':
+          role = 'pastor';
+          break;
+        case 'recepcionista':
+          role = 'recepcionista';
+          break;
+        default:
+          console.error('Role não reconhecido:', profile.role);
+          return null;
       }
 
       const userWithPermissions: UserWithPermissions = {
         id: userId,
-        email: authUser.user.email || '',
+        email: profile.email || '',
         role,
         permissions: ROLE_PERMISSIONS[role],
-        isActive: true,
-        createdAt: new Date(authUser.user.created_at),
+        isActive: profile.ativo,
+        createdAt: new Date(),
         updatedAt: new Date()
       };
 

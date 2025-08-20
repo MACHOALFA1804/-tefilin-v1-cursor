@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { supabase, VisitanteRow } from '../../lib/supabaseClient';
+import React, { useState, useEffect, useCallback } from 'react';
+import { supabase, VisitanteRow, VisitaRow } from '../../lib/supabaseClient';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { reportService, ReportData, downloadPDF, downloadCSV } from '../../services/reportService';
@@ -327,21 +327,178 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
     }));
   };
 
+  const [loading, setLoading] = useState(false);
+  const [relatorioGerado, setRelatorioGerado] = useState(false);
+  const [dadosRelatorio, setDadosRelatorio] = useState<any>(null);
+  const [configRelatorio, setConfigRelatorio] = useState({
+    periodo: 'mes',
+    tipo: 'completo',
+    incluirGraficos: true,
+    incluirEstatisticas: true
+  });
+
+  // Gerar relatório
+  const gerarRelatorio = useCallback(async () => {
+    try {
+      setLoading(true);
+      setRelatorioGerado(false);
+
+      // Calcular período
+      const hoje = new Date();
+      let dataInicio = new Date();
+      
+      switch (configRelatorio.periodo) {
+        case 'semana':
+          dataInicio.setDate(hoje.getDate() - 7);
+          break;
+        case 'mes':
+          dataInicio.setMonth(hoje.getMonth() - 1);
+          break;
+        case 'trimestre':
+          dataInicio.setMonth(hoje.getMonth() - 3);
+          break;
+        case 'ano':
+          dataInicio.setFullYear(hoje.getFullYear() - 1);
+          break;
+      }
+
+      // Buscar dados
+      const { data: visitantes, error: visitantesError } = await supabase
+        .from('visitantes')
+        .select('*')
+        .gte('created_at', dataInicio.toISOString())
+        .order('created_at', { ascending: false });
+
+      if (visitantesError) throw visitantesError;
+
+      const { data: visitas, error: visitasError } = await supabase
+        .from('visitas')
+        .select('*')
+        .gte('data_agendada', dataInicio.toISOString())
+        .order('data_agendada', { ascending: false });
+
+      if (visitasError) throw visitasError;
+
+      // Calcular estatísticas
+      const estatisticas = {
+        periodo: configRelatorio.periodo,
+        dataInicio: dataInicio.toLocaleDateString('pt-BR'),
+        dataFim: hoje.toLocaleDateString('pt-BR'),
+        totalVisitantes: visitantes?.length || 0,
+        novosMembros: visitantes?.filter(v => v.status === 'Novo Membro').length || 0,
+        naoCristaos: visitantes?.filter(v => v.tipo === 'Não Cristão').length || 0,
+        visitasAgendadas: visitas?.filter(v => v.status === 'Agendada').length || 0,
+        visitasRealizadas: visitas?.filter(v => v.status === 'Realizada').length || 0,
+        visitasCanceladas: visitas?.filter(v => v.status === 'Cancelada').length || 0,
+        taxaConversao: visitantes && visitantes.length > 0 
+          ? ((visitantes.filter(v => v.status === 'Novo Membro').length / visitantes.length) * 100).toFixed(1)
+          : '0'
+      };
+
+      // Análise por tipo de visitante
+      const analisePorTipo = visitantes?.reduce((acc: any, visitante) => {
+        const tipo = visitante.tipo || 'Não informado';
+        acc[tipo] = (acc[tipo] || 0) + 1;
+        return acc;
+      }, {}) || {};
+
+      // Análise por status
+      const analisePorStatus = visitantes?.reduce((acc: any, visitante) => {
+        const status = visitante.status || 'Não informado';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {}) || {};
+
+      // Análise temporal (últimos 30 dias)
+      const analiseTemporal = [];
+      for (let i = 29; i >= 0; i--) {
+        const data = new Date();
+        data.setDate(data.getDate() - i);
+        const dataStr = data.toISOString().split('T')[0];
+        
+        const visitantesDia = visitantes?.filter(v => 
+          v.created_at?.startsWith(dataStr)
+        ).length || 0;
+
+        analiseTemporal.push({
+          data: data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }),
+          quantidade: visitantesDia
+        });
+      }
+
+      const relatorio = {
+        estatisticas,
+        analisePorTipo,
+        analisePorStatus,
+        analiseTemporal,
+        visitantes: visitantes || [],
+        visitas: visitas || [],
+        configuracao: configRelatorio
+      };
+
+      setDadosRelatorio(relatorio);
+      setRelatorioGerado(true);
+
+    } catch (error) {
+      console.error('Erro ao gerar relatório:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [configRelatorio]);
+
+  // Download do relatório (simulado)
+  const downloadRelatorio = () => {
+    if (!dadosRelatorio) return;
+
+    const conteudo = `
+RELATÓRIO PASTORAL - TEFILIN v1
+Período: ${dadosRelatorio.estatisticas.dataInicio} a ${dadosRelatorio.estatisticas.dataFim}
+
+ESTATÍSTICAS GERAIS:
+- Total de Visitantes: ${dadosRelatorio.estatisticas.totalVisitantes}
+- Novos Membros: ${dadosRelatorio.estatisticas.novosMembros}
+- Não Cristãos: ${dadosRelatorio.estatisticas.naoCristaos}
+- Taxa de Conversão: ${dadosRelatorio.estatisticas.taxaConversao}%
+
+VISITAS:
+- Agendadas: ${dadosRelatorio.estatisticas.visitasAgendadas}
+- Realizadas: ${dadosRelatorio.estatisticas.visitasRealizadas}
+- Canceladas: ${dadosRelatorio.estatisticas.visitasCanceladas}
+
+ANÁLISE POR TIPO:
+${Object.entries(dadosRelatorio.analisePorTipo).map(([tipo, quantidade]) => `- ${tipo}: ${quantidade}`).join('\n')}
+
+ANÁLISE POR STATUS:
+${Object.entries(dadosRelatorio.analisePorStatus).map(([status, quantidade]) => `- ${status}: ${quantidade}`).join('\n')}
+
+Gerado em: ${new Date().toLocaleString('pt-BR')}
+    `;
+
+    const blob = new Blob([conteudo], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `relatorio_pastoral_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-4 py-6">
       {/* Header */}
       <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5 mb-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/20 text-purple-300 grid place-items-center">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 grid place-items-center">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/>
-                <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/>
+                <path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
               </svg>
             </div>
             <div>
-              <h2 className="text-white text-lg font-semibold">Geração de Relatórios</h2>
-              <p className="text-slate-400 text-sm">Relatórios personalizados em PDF e CSV</p>
+              <h2 className="text-white text-lg font-semibold">Relatórios e Análises</h2>
+              <p className="text-slate-400 text-sm">Métricas e insights para o crescimento da igreja</p>
             </div>
           </div>
           <button
@@ -353,192 +510,161 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Configurações do Relatório */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Filtros */}
-          <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5">
-            <h3 className="text-white font-semibold mb-4">Filtros do Relatório</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Data Início</label>
-                <input
-                  type="date"
-                  value={filtros.dataInicio}
-                  onChange={(e) => handleFiltroChange('dataInicio', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
-                />
-              </div>
+      {/* Configuração do Relatório */}
+      <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5 mb-6">
+        <h3 className="text-white font-semibold mb-4">Configuração do Relatório</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Período</label>
+            <select
+              value={configRelatorio.periodo}
+              onChange={(e) => setConfigRelatorio(prev => ({ ...prev, periodo: e.target.value }))}
+              className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+            >
+              <option value="semana">Última Semana</option>
+              <option value="mes">Último Mês</option>
+              <option value="trimestre">Último Trimestre</option>
+              <option value="ano">Último Ano</option>
+            </select>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Tipo</label>
+            <select
+              value={configRelatorio.tipo}
+              onChange={(e) => setConfigRelatorio(prev => ({ ...prev, tipo: e.target.value }))}
+              className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+            >
+              <option value="completo">Relatório Completo</option>
+              <option value="resumido">Relatório Resumido</option>
+              <option value="visitantes">Apenas Visitantes</option>
+              <option value="visitas">Apenas Visitas</option>
+            </select>
+          </div>
+          
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="incluirGraficos"
+              checked={configRelatorio.incluirGraficos}
+              onChange={(e) => setConfigRelatorio(prev => ({ ...prev, incluirGraficos: e.target.checked }))}
+              className="w-4 h-4 text-cyan-500 bg-slate-900 border-slate-700 rounded focus:ring-cyan-500 focus:ring-2"
+            />
+            <label htmlFor="incluirGraficos" className="ml-2 text-sm text-slate-300">
+              Incluir Gráficos
+            </label>
+          </div>
+          
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              id="incluirEstatisticas"
+              checked={configRelatorio.incluirEstatisticas}
+              onChange={(e) => setConfigRelatorio(prev => ({ ...prev, incluirEstatisticas: e.target.checked }))}
+              className="w-4 h-4 text-cyan-500 bg-slate-900 border-slate-700 rounded focus:ring-cyan-500 focus:ring-2"
+            />
+            <label htmlFor="incluirEstatisticas" className="ml-2 text-sm text-slate-300">
+              Incluir Estatísticas
+            </label>
+          </div>
+        </div>
+        
+        <button
+          onClick={gerarRelatorio}
+          disabled={loading}
+          className="px-6 py-3 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          {loading ? 'Gerando...' : 'Gerar Relatório'}
+        </button>
+      </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Data Fim</label>
-                <input
-                  type="date"
-                  value={filtros.dataFim}
-                  onChange={(e) => handleFiltroChange('dataFim', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Tipo de Visitante</label>
-                <select
-                  value={filtros.tipo}
-                  onChange={(e) => handleFiltroChange('tipo', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
-                >
-                  <option value="Todos">Todos os tipos</option>
-                  <option value="Cristão">Cristão</option>
-                  <option value="Não Cristão">Não Cristão</option>
-                  <option value="Pregador">Pregador</option>
-                  <option value="Outro">Outro</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-2">Status</label>
-                <select
-                  value={filtros.status}
-                  onChange={(e) => handleFiltroChange('status', e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
-                >
-                  <option value="Todos">Todos os status</option>
-                  <option value="Aguardando">Aguardando</option>
-                  <option value="Aguardando Visita">Aguardando Visita</option>
-                  <option value="Visitado">Visitado</option>
-                  <option value="Novo Membro">Novo Membro</option>
-                  <option value="Pendente">Pendente</option>
-                </select>
-              </div>
+      {/* Relatório Gerado */}
+      {relatorioGerado && dadosRelatorio && (
+        <div className="space-y-6">
+          {/* Estatísticas Principais */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="rounded-xl border border-blue-500/30 bg-blue-500/10 p-4 text-center">
+              <div className="text-2xl font-bold text-blue-400">{dadosRelatorio.estatisticas.totalVisitantes}</div>
+              <div className="text-blue-300 text-sm">Total Visitantes</div>
             </div>
+            <div className="rounded-xl border border-green-500/30 bg-green-500/10 p-4 text-center">
+              <div className="text-2xl font-bold text-green-400">{dadosRelatorio.estatisticas.novosMembros}</div>
+              <div className="text-green-300 text-sm">Novos Membros</div>
+            </div>
+            <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-4 text-center">
+              <div className="text-2xl font-bold text-purple-400">{dadosRelatorio.estatisticas.naoCristaos}</div>
+              <div className="text-purple-300 text-sm">Não Cristãos</div>
+            </div>
+            <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/10 p-4 text-center">
+              <div className="text-2xl font-bold text-yellow-400">{dadosRelatorio.estatisticas.taxaConversao}%</div>
+              <div className="text-yellow-300 text-sm">Taxa Conversão</div>
+            </div>
+          </div>
 
-            {/* Períodos Rápidos */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-slate-300 mb-2">Períodos Rápidos</label>
-              <div className="flex gap-2 flex-wrap">
-                {[
-                  { label: 'Últimos 7 dias', dias: 7 },
-                  { label: 'Últimos 30 dias', dias: 30 },
-                  { label: 'Últimos 90 dias', dias: 90 },
-                  { label: 'Último ano', dias: 365 }
-                ].map(periodo => (
-                  <button
-                    key={periodo.dias}
-                    onClick={() => definirPeriodoRapido(periodo.dias)}
-                    className="px-3 py-1 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 text-sm font-semibold hover:bg-slate-600"
-                  >
-                    {periodo.label}
-                  </button>
+          {/* Análise por Tipo */}
+          <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5">
+            <h3 className="text-white font-semibold mb-4">Análise por Tipo de Visitante</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Object.entries(dadosRelatorio.analisePorTipo).map(([tipo, quantidade]) => (
+                <div key={tipo} className="bg-slate-900/40 rounded-lg p-4 border border-slate-700">
+                  <div className="text-2xl font-bold text-cyan-400">{quantidade as number}</div>
+                  <div className="text-slate-300 text-sm">{tipo}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Análise por Status */}
+          <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5">
+            <h3 className="text-white font-semibold mb-4">Análise por Status</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Object.entries(dadosRelatorio.analisePorStatus).map(([status, quantidade]) => (
+                <div key={status} className="bg-slate-900/40 rounded-lg p-4 border border-slate-700">
+                  <div className="text-2xl font-bold text-emerald-400">{quantidade as number}</div>
+                  <div className="text-slate-300 text-sm">{status}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Análise Temporal */}
+          <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5">
+            <h3 className="text-white font-semibold mb-4">Evolução dos Últimos 30 Dias</h3>
+            <div className="overflow-x-auto">
+              <div className="flex gap-2 min-w-max">
+                {dadosRelatorio.analiseTemporal.map((item, index) => (
+                  <div key={index} className="flex flex-col items-center">
+                    <div className="text-xs text-slate-400 mb-1">{item.data}</div>
+                    <div 
+                      className="w-8 bg-cyan-500/30 border border-cyan-500/50 rounded-t"
+                      style={{ height: `${Math.max(item.quantidade * 4, 4)}px` }}
+                      title={`${item.quantidade} visitantes`}
+                    ></div>
+                    <div className="text-xs text-slate-300 mt-1">{item.quantidade}</div>
+                  </div>
                 ))}
               </div>
             </div>
           </div>
 
-          {/* Dados a Incluir */}
-          <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5">
-            <h3 className="text-white font-semibold mb-4">Dados a Incluir</h3>
-            
-            <div className="space-y-3">
-              {[
-                { key: 'informacoesPessoais', label: 'Informações Pessoais dos Visitantes', desc: 'Nome, telefone, tipo, status, data de cadastro' },
-                { key: 'historico', label: 'Histórico de Visitas', desc: 'Dados das visitas realizadas e agendadas' },
-                { key: 'estatisticas', label: 'Estatísticas Resumidas', desc: 'Totais, gráficos e análises dos dados' },
-                { key: 'graficos', label: 'Gráficos e Visualizações', desc: 'Gráficos de crescimento e distribuição' }
-              ].map(item => (
-                <label key={item.key} className="flex items-start gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={filtros.incluirDados[item.key as keyof typeof filtros.incluirDados]}
-                    onChange={() => handleIncluirDadosChange(item.key)}
-                    className="mt-1 rounded"
-                  />
-                  <div>
-                    <div className="text-slate-200 font-medium">{item.label}</div>
-                    <div className="text-slate-400 text-sm">{item.desc}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Botões de Geração */}
-          <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5">
-            <h3 className="text-white font-semibold mb-4">Gerar Relatório</h3>
-            
-            <div className="flex gap-4">
-              <button
-                onClick={gerarRelatorioPDF}
-                disabled={gerandoRelatorio || loading}
-                className="flex-1 px-4 py-3 rounded-lg bg-purple-400 text-slate-900 font-bold shadow-md shadow-purple-500/30 hover:bg-purple-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {gerandoRelatorio ? 'Gerando PDF...' : '📄 Gerar PDF'}
-              </button>
-              
-              <button
-                onClick={gerarRelatorioCSV}
-                disabled={loading}
-                className="flex-1 px-4 py-3 rounded-lg bg-emerald-400 text-slate-900 font-bold shadow-md shadow-emerald-500/30 hover:bg-emerald-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                📊 Exportar CSV
-              </button>
-            </div>
+          {/* Ações */}
+          <div className="flex gap-4">
+            <button
+              onClick={downloadRelatorio}
+              className="px-6 py-3 rounded-lg bg-blue-500 text-white font-semibold hover:bg-blue-600 transition-colors"
+            >
+              📥 Download do Relatório
+            </button>
+            <button
+              onClick={() => setRelatorioGerado(false)}
+              className="px-6 py-3 rounded-lg bg-slate-600 text-white font-semibold hover:bg-slate-500 transition-colors"
+            >
+              🔄 Gerar Novo Relatório
+            </button>
           </div>
         </div>
-
-        {/* Preview dos Dados */}
-        <div className="space-y-6">
-          {/* Resumo */}
-          <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5">
-            <h3 className="text-white font-semibold mb-4">Preview dos Dados</h3>
-            
-            {loading ? (
-              <div className="text-slate-400">Carregando...</div>
-            ) : previewData ? (
-              <div className="space-y-4">
-                <div className="text-center">
-                  <div className="text-3xl font-bold text-purple-400">{previewData.total}</div>
-                  <div className="text-slate-400 text-sm">Total de Visitantes</div>
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="text-slate-300 font-medium text-sm">Por Tipo:</h4>
-                  {Object.entries(previewData.porTipo).map(([tipo, count]) => (
-                    <div key={tipo} className="flex justify-between text-sm">
-                      <span className="text-slate-400">{tipo}:</span>
-                      <span className="text-slate-200">{count}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="space-y-2">
-                  <h4 className="text-slate-300 font-medium text-sm">Por Status:</h4>
-                  {Object.entries(previewData.porStatus).map(([status, count]) => (
-                    <div key={status} className="flex justify-between text-sm">
-                      <span className="text-slate-400">{status}:</span>
-                      <span className="text-slate-200">{count}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <div className="text-slate-400">Nenhum dado encontrado</div>
-            )}
-          </div>
-
-          {/* Instruções */}
-          <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4">
-            <h4 className="text-white font-semibold mb-2">Instruções:</h4>
-            <ul className="text-slate-300 text-sm space-y-1">
-              <li>• Configure os filtros desejados</li>
-              <li>• Selecione os dados a incluir</li>
-              <li>• PDF: Para impressão e apresentações</li>
-              <li>• CSV: Para análise em planilhas</li>
-              <li>• Use períodos específicos para análises detalhadas</li>
-            </ul>
-          </div>
-        </div>
-      </div>
+      )}
     </main>
   );
 };

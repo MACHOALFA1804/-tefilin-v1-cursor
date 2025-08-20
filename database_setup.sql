@@ -5,7 +5,7 @@
 -- 1. TABELA DE PERFIS DE USUÁRIOS
 CREATE TABLE IF NOT EXISTS profiles (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE UNIQUE,
     role TEXT CHECK (role IN ('admin', 'pastor', 'recepcionista')) NOT NULL,
     nome TEXT NOT NULL,
     email TEXT NOT NULL,
@@ -103,9 +103,13 @@ ALTER TABLE mensagens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE configuracoes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE login_attempts ENABLE ROW LEVEL SECURITY;
 
--- Política para profiles (usuários só veem seus próprios dados)
-CREATE POLICY "Users can view own profile" ON profiles
-    FOR SELECT USING (auth.uid() = user_id);
+-- Política para profiles (usuários autenticados podem ver perfis)
+CREATE POLICY "Authenticated users can view profiles" ON profiles
+    FOR SELECT USING (auth.role() = 'authenticated');
+
+-- Política para profiles (usuários podem editar seus próprios perfis)
+CREATE POLICY "Users can update own profile" ON profiles
+    FOR UPDATE USING (auth.uid() = user_id);
 
 -- Política para visitantes (todos os usuários autenticados podem ver)
 CREATE POLICY "Authenticated users can view visitantes" ON visitantes

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabaseClient';
 import CadastroVisitantesView from '../components/recepcao/CadastroVisitantesView';
@@ -10,14 +10,63 @@ type ActiveView = 'dashboard' | 'cadastro' | 'historico';
 const RecepcaoDashboard: React.FC = () => {
   const navigate = useNavigate();
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
+  const [stats, setStats] = useState({
+    total: 0,
+    aguardando: 0,
+    visitados: 0,
+    novosMembros: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  // Carregar estatísticas dos visitantes
+  const loadStats = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // Buscar todos os visitantes
+      const { data: visitantes, error } = await supabase
+        .from('visitantes')
+        .select('*');
+
+      if (error) {
+        console.error('Erro ao carregar visitantes:', error);
+        return;
+      }
+
+      if (visitantes) {
+        const statsData = {
+          total: visitantes.length,
+          aguardando: visitantes.filter(v => v.status === 'Aguardando').length,
+          visitados: visitantes.filter(v => v.status === 'Visitado').length,
+          novosMembros: visitantes.filter(v => v.status === 'Novo Membro').length
+        };
+        setStats(statsData);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  // Carregar dados quando o componente montar
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
+
+  // Recarregar dados quando voltar para o dashboard
+  const handleBackToDashboard = () => {
+    setActiveView('dashboard');
+    loadStats(); // Recarregar estatísticas
+  };
 
   // Renderizar view baseado na seleção
   const renderContent = () => {
     switch (activeView) {
       case 'cadastro':
-        return <CadastroVisitantesView onBack={() => setActiveView('dashboard')} />;
+        return <CadastroVisitantesView onBack={handleBackToDashboard} />;
       case 'historico':
-        return <HistoricoVisitantesView onBack={() => setActiveView('dashboard')} />;
+        return <HistoricoVisitantesView onBack={handleBackToDashboard} />;
       default:
         return (
           <main className="max-w-7xl mx-auto px-4 py-6">
@@ -92,19 +141,27 @@ const RecepcaoDashboard: React.FC = () => {
             {/* Estatísticas Rápidas */}
             <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
-                <div className="text-2xl font-bold text-blue-400">0</div>
+                <div className="text-2xl font-bold text-blue-400">
+                  {loading ? '...' : stats.total}
+                </div>
                 <div className="text-slate-400 text-sm">Total Visitantes</div>
               </div>
               <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
-                <div className="text-2xl font-bold text-green-400">0</div>
+                <div className="text-2xl font-bold text-green-400">
+                  {loading ? '...' : stats.aguardando}
+                </div>
                 <div className="text-slate-400 text-sm">Aguardando</div>
               </div>
               <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
-                <div className="text-2xl font-bold text-purple-400">0</div>
+                <div className="text-2xl font-bold text-purple-400">
+                  {loading ? '...' : stats.visitados}
+                </div>
                 <div className="text-slate-400 text-sm">Visitados</div>
               </div>
               <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
-                <div className="text-2xl font-bold text-emerald-400">0</div>
+                <div className="text-2xl font-bold text-emerald-400">
+                  {loading ? '...' : stats.novosMembros}
+                </div>
                 <div className="text-slate-400 text-sm">Novos Membros</div>
               </div>
             </div>

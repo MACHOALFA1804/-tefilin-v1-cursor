@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase, VisitanteRow, VisitaRow } from '../../lib/supabaseClient';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 interface RelatoriosViewProps {
   onBack: () => void;
@@ -122,6 +122,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
 
     } catch (error) {
       console.error('Erro ao gerar relatório:', error);
+      alert('Erro ao gerar relatório. Verifique o console para mais detalhes.');
     } finally {
       setLoading(false);
     }
@@ -181,7 +182,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
       ];
       
       console.log('Adicionando tabela de estatísticas...');
-      (doc as any).autoTable({
+      autoTable(doc, {
         startY: 80,
         head: [['Métrica', 'Valor']],
         body: stats,
@@ -200,13 +201,21 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
         margin: { left: 20, right: 20 }
       });
       
+      // Pegar a posição Y final da última tabela
+      let finalY = (doc as any).lastAutoTable.finalY || 150;
+      
       // Análise por tipo
       if (Object.keys(dadosRelatorio.analisePorTipo).length > 0) {
         console.log('Adicionando análise por tipo...');
         const tipoData = Object.entries(dadosRelatorio.analisePorTipo).map(([tipo, quantidade]) => [tipo, (quantidade as number).toString()]);
         
-        (doc as any).autoTable({
-          startY: (doc as any).lastAutoTable.finalY + 20,
+        // Adicionar título
+        doc.setFontSize(14);
+        doc.setTextColor(34, 211, 238);
+        doc.text('Análise por Tipo de Visitante', 20, finalY + 15);
+        
+        autoTable(doc, {
+          startY: finalY + 20,
           head: [['Tipo de Visitante', 'Quantidade']],
           body: tipoData,
           theme: 'grid',
@@ -223,6 +232,8 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
           },
           margin: { left: 20, right: 20 }
         });
+        
+        finalY = (doc as any).lastAutoTable.finalY;
       }
       
       // Análise por status
@@ -230,8 +241,13 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
         console.log('Adicionando análise por status...');
         const statusData = Object.entries(dadosRelatorio.analisePorStatus).map(([status, quantidade]) => [status, (quantidade as number).toString()]);
         
-        (doc as any).autoTable({
-          startY: (doc as any).lastAutoTable.finalY + 20,
+        // Adicionar título
+        doc.setFontSize(14);
+        doc.setTextColor(34, 211, 238);
+        doc.text('Análise por Status', 20, finalY + 15);
+        
+        autoTable(doc, {
+          startY: finalY + 20,
           head: [['Status', 'Quantidade']],
           body: statusData,
           theme: 'grid',
@@ -248,11 +264,20 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
           },
           margin: { left: 20, right: 20 }
         });
+        
+        finalY = (doc as any).lastAutoTable.finalY;
       }
       
       // Lista de visitantes (se configurado)
       if (configRelatorio.incluirEstatisticas && dadosRelatorio.visitantes.length > 0) {
         console.log('Adicionando lista de visitantes...');
+        
+        // Verificar se precisa de nova página
+        if (finalY > 200) {
+          doc.addPage();
+          finalY = 20;
+        }
+        
         const visitantesData = dadosRelatorio.visitantes.slice(0, 20).map((v: any) => [
           v.nome || '-',
           v.telefone || '-',
@@ -261,8 +286,13 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
           v.created_at ? new Date(v.created_at).toLocaleDateString('pt-BR') : '-'
         ]);
         
-        (doc as any).autoTable({
-          startY: (doc as any).lastAutoTable.finalY + 20,
+        // Adicionar título
+        doc.setFontSize(14);
+        doc.setTextColor(34, 211, 238);
+        doc.text('Lista de Visitantes', 20, finalY + 15);
+        
+        autoTable(doc, {
+          startY: finalY + 20,
           head: [['Nome', 'Telefone', 'Tipo', 'Status', 'Data Cadastro']],
           body: visitantesData,
           theme: 'grid',
@@ -277,13 +307,19 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
             textColor: [0, 0, 0],
             fontSize: 9
           },
-          margin: { left: 20, right: 20 }
+          margin: { left: 20, right: 20 },
+          styles: {
+            fontSize: 9,
+            cellPadding: 2
+          }
         });
+        
+        finalY = (doc as any).lastAutoTable.finalY;
         
         if (dadosRelatorio.visitantes.length > 20) {
           doc.setFontSize(10);
           doc.setTextColor(100, 116, 139);
-          doc.text(`* Mostrando apenas os primeiros 20 visitantes de ${dadosRelatorio.visitantes.length} total`, 20, (doc as any).lastAutoTable.finalY + 10);
+          doc.text(`* Mostrando apenas os primeiros 20 visitantes de ${dadosRelatorio.visitantes.length} total`, 20, finalY + 10);
         }
       }
       
@@ -293,7 +329,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
         doc.setPage(i);
         doc.setFontSize(10);
         doc.setTextColor(100, 116, 139);
-        doc.text(`Página ${i} de ${pageCount}`, 105, doc.internal.pageSize.height - 10, { align: 'center' });
+        doc.text(`Página ${i} de ${pageCount}`, 105, (doc as any).internal.pageSize.height - 10, { align: 'center' });
       }
       
       console.log('Salvando PDF...');
@@ -302,6 +338,7 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
       doc.save(filename);
       
       console.log('PDF gerado com sucesso!');
+      alert('PDF gerado com sucesso!');
       
     } catch (error) {
       console.error('Erro ao gerar PDF:', error);

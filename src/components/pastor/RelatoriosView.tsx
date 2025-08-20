@@ -1,332 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { supabase, VisitanteRow, VisitaRow } from '../../lib/supabaseClient';
-import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { reportService, ReportData, downloadPDF, downloadCSV } from '../../services/reportService';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 interface RelatoriosViewProps {
   onBack: () => void;
 }
 
-interface FiltrosRelatorio {
-  dataInicio: string;
-  dataFim: string;
-  tipo: string;
-  status: string;
-  incluirDados: {
-    informacoesPessoais: boolean;
-    historico: boolean;
-    estatisticas: boolean;
-    graficos: boolean;
-  };
-}
-
 const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
-  const [visitantes, setVisitantes] = useState<VisitanteRow[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [gerandoRelatorio, setGerandoRelatorio] = useState(false);
-  
-  const [filtros, setFiltros] = useState<FiltrosRelatorio>({
-    dataInicio: '',
-    dataFim: '',
-    tipo: 'Todos',
-    status: 'Todos',
-    incluirDados: {
-      informacoesPessoais: true,
-      historico: true,
-      estatisticas: true,
-      graficos: false
-    }
-  });
-
-  const [previewData, setPreviewData] = useState<{
-    total: number;
-    porTipo: Record<string, number>;
-    porStatus: Record<string, number>;
-    porMes: Record<string, number>;
-  } | null>(null);
-
-  const loadPreviewData = async () => {
-    setLoading(true);
-    
-    try {
-      let query = supabase
-        .from('visitantes')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      // Aplicar filtros de data
-      if (filtros.dataInicio) {
-        query = query.gte('created_at', filtros.dataInicio);
-      }
-      if (filtros.dataFim) {
-        const dataFimAjustada = new Date(filtros.dataFim);
-        dataFimAjustada.setHours(23, 59, 59, 999);
-        query = query.lte('created_at', dataFimAjustada.toISOString());
-      }
-
-      // Aplicar filtros de tipo e status
-      if (filtros.tipo !== 'Todos') {
-        query = query.eq('tipo', filtros.tipo);
-      }
-      if (filtros.status !== 'Todos') {
-        query = query.eq('status', filtros.status);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-
-      setVisitantes(data || []);
-
-      // Calcular estatísticas para preview
-      if (data) {
-        const porTipo: Record<string, number> = {};
-        const porStatus: Record<string, number> = {};
-        const porMes: Record<string, number> = {};
-
-        data.forEach(visitante => {
-          // Por tipo
-          porTipo[visitante.tipo || 'Não informado'] = (porTipo[visitante.tipo || 'Não informado'] || 0) + 1;
-          
-          // Por status
-          porStatus[visitante.status || 'Não informado'] = (porStatus[visitante.status || 'Não informado'] || 0) + 1;
-          
-          // Por mês
-          if (visitante.created_at) {
-            const mes = new Date(visitante.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-            porMes[mes] = (porMes[mes] || 0) + 1;
-          }
-        });
-
-        setPreviewData({
-          total: data.length,
-          porTipo,
-          porStatus,
-          porMes
-        });
-      }
-
-    } catch (error) {
-      console.error('Erro ao carregar dados:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadPreviewData();
-  }, [filtros.dataInicio, filtros.dataFim, filtros.tipo, filtros.status]);
-
-  const handleFiltroChange = (campo: string, valor: any) => {
-    setFiltros(prev => ({
-      ...prev,
-      [campo]: valor
-    }));
-  };
-
-  const handleIncluirDadosChange = (campo: string) => {
-    setFiltros(prev => ({
-      ...prev,
-      incluirDados: {
-        ...prev.incluirDados,
-        [campo]: !prev.incluirDados[campo as keyof typeof prev.incluirDados]
-      }
-    }));
-  };
-
-  const gerarRelatorioCSV = async () => {
-    if (visitantes.length === 0) {
-      alert('Nenhum dado para gerar relatório!');
-      return;
-    }
-
-    setGerandoRelatorio(true);
-    
-    try {
-      const reportData: ReportData = {
-        title: 'Relatório de Visitantes',
-        subtitle: `Período: ${filtros.dataInicio ? format(new Date(filtros.dataInicio), 'dd/MM/yyyy', { locale: ptBR }) : 'Início'} até ${filtros.dataFim ? format(new Date(filtros.dataFim), 'dd/MM/yyyy', { locale: ptBR }) : 'Fim'}`,
-        period: {
-          start: filtros.dataInicio ? new Date(filtros.dataInicio) : startOfMonth(subMonths(new Date(), 1)),
-          end: filtros.dataFim ? new Date(filtros.dataFim) : endOfMonth(new Date())
-        },
-        data: visitantes,
-        metadata: {
-          totalRegistros: visitantes.length,
-          filtrosAplicados: [
-            filtros.tipo !== 'Todos' ? `Tipo: ${filtros.tipo}` : '',
-            filtros.status !== 'Todos' ? `Status: ${filtros.status}` : ''
-          ].filter(Boolean),
-          geradoPor: 'Pastor Dashboard',
-          dataGeracao: new Date()
-        }
-      };
-
-      const csvContent = reportService.generateCSV(reportData, 'visitors');
-      const filename = `relatorio_visitantes_${format(new Date(), 'dd-MM-yyyy_HH-mm', { locale: ptBR })}.csv`;
-      
-      downloadCSV(csvContent, filename);
-      alert('Relatório CSV gerado com sucesso!');
-      
-    } catch (error) {
-      console.error('Erro ao gerar relatório CSV:', error);
-      alert('Erro ao gerar relatório CSV');
-    } finally {
-      setGerandoRelatorio(false);
-    }
-  };
-
-  const gerarRelatorioPDF = async () => {
-    if (visitantes.length === 0) {
-      alert('Nenhum dado para gerar relatório!');
-      return;
-    }
-
-    setGerandoRelatorio(true);
-    
-    try {
-      const reportData: ReportData = {
-        title: 'Relatório de Visitantes',
-        subtitle: `Período: ${filtros.dataInicio ? format(new Date(filtros.dataInicio), 'dd/MM/yyyy', { locale: ptBR }) : 'Início'} até ${filtros.dataFim ? format(new Date(filtros.dataFim), 'dd/MM/yyyy', { locale: ptBR }) : 'Fim'}`,
-        period: {
-          start: filtros.dataInicio ? new Date(filtros.dataInicio) : startOfMonth(subMonths(new Date(), 1)),
-          end: filtros.dataFim ? new Date(filtros.dataFim) : endOfMonth(new Date())
-        },
-        data: visitantes,
-        metadata: {
-          totalRegistros: visitantes.length,
-          filtrosAplicados: [
-            filtros.tipo !== 'Todos' ? `Tipo: ${filtros.tipo}` : '',
-            filtros.status !== 'Todos' ? `Status: ${filtros.status}` : ''
-          ].filter(Boolean),
-          geradoPor: 'Pastor Dashboard',
-          dataGeracao: new Date()
-        }
-      };
-
-      const pdfBlob = await reportService.generateVisitorsReportPDF(reportData);
-      const filename = `relatorio_visitantes_${format(new Date(), 'dd-MM-yyyy_HH-mm', { locale: ptBR })}.pdf`;
-      
-      downloadPDF(pdfBlob, filename);
-      alert('Relatório PDF gerado com sucesso!');
-      
-    } catch (error) {
-      console.error('Erro ao gerar relatório PDF:', error);
-      alert('Erro ao gerar relatório PDF');
-    } finally {
-      setGerandoRelatorio(false);
-    }
-  };
-
-  const gerarHTMLRelatorio = () => {
-    const dataAtual = new Date().toLocaleDateString('pt-BR');
-    
-    return `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Relatório de Visitantes - ${dataAtual}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            .header { text-align: center; margin-bottom: 30px; }
-            .logo { color: #22d3ee; font-weight: bold; font-size: 24px; }
-            .subtitle { color: #64748b; margin-top: 5px; }
-            .filters { background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-            .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-            .stat-card { background: white; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; text-align: center; }
-            .stat-value { font-size: 24px; font-weight: bold; color: #22d3ee; }
-            .stat-label { color: #64748b; font-size: 14px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; }
-            th { background: #f8fafc; font-weight: bold; }
-            .footer { text-align: center; margin-top: 30px; color: #64748b; font-size: 12px; }
-            @media print {
-              body { margin: 0; }
-              .no-print { display: none; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <div class="logo">TEFILIN v1</div>
-            <div class="subtitle">Assembleia de Deus Vila Evangélica</div>
-            <h2>Relatório de Visitantes</h2>
-            <p>Gerado em: ${dataAtual}</p>
-          </div>
-
-          ${filtros.incluirDados.estatisticas && previewData ? `
-            <div class="filters">
-              <strong>Filtros Aplicados:</strong><br>
-              Período: ${filtros.dataInicio || 'Início'} até ${filtros.dataFim || 'Fim'}<br>
-              Tipo: ${filtros.tipo} | Status: ${filtros.status}
-            </div>
-
-            <div class="stats">
-              <div class="stat-card">
-                <div class="stat-value">${previewData.total}</div>
-                <div class="stat-label">Total de Visitantes</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-value">${previewData.porTipo['Não Cristão'] || 0}</div>
-                <div class="stat-label">Não Cristãos</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-value">${previewData.porStatus['Aguardando Visita'] || 0}</div>
-                <div class="stat-label">Aguardando Visita</div>
-              </div>
-              <div class="stat-card">
-                <div class="stat-value">${previewData.porStatus['Visitado'] || 0}</div>
-                <div class="stat-label">Visitados</div>
-              </div>
-            </div>
-          ` : ''}
-
-          ${filtros.incluirDados.informacoesPessoais ? `
-            <table>
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Telefone</th>
-                  <th>Tipo</th>
-                  <th>Status</th>
-                  <th>Data de Cadastro</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${visitantes.map(v => `
-                  <tr>
-                    <td>${v.nome || '-'}</td>
-                    <td>${v.telefone || '-'}</td>
-                    <td>${v.tipo || '-'}</td>
-                    <td>${v.status || '-'}</td>
-                    <td>${v.created_at ? new Date(v.created_at).toLocaleDateString('pt-BR') : '-'}</td>
-                  </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          ` : ''}
-
-          <div class="footer">
-            <p>"E tudo quanto fizerdes, fazei-o de todo o coração, como ao Senhor" - Colossenses 3:23</p>
-            <p>DEV EMERSON 2025</p>
-          </div>
-        </body>
-      </html>
-    `;
-  };
-
-  const definirPeriodoRapido = (dias: number) => {
-    const hoje = new Date();
-    const inicio = new Date();
-    inicio.setDate(hoje.getDate() - dias);
-    
-    setFiltros(prev => ({
-      ...prev,
-      dataInicio: inicio.toISOString().split('T')[0],
-      dataFim: hoje.toISOString().split('T')[0]
-    }));
-  };
-
   const [loading, setLoading] = useState(false);
   const [relatorioGerado, setRelatorioGerado] = useState(false);
   const [dadosRelatorio, setDadosRelatorio] = useState<any>(null);
@@ -446,7 +127,189 @@ const RelatoriosView: React.FC<RelatoriosViewProps> = ({ onBack }) => {
     }
   }, [configRelatorio]);
 
-  // Download do relatório (simulado)
+  // Gerar relatório em PDF
+  const gerarRelatorioPDF = async () => {
+    console.log('Iniciando geração de PDF...');
+    
+    if (!dadosRelatorio) {
+      console.error('Dados do relatório não encontrados');
+      alert('Gere um relatório primeiro antes de criar o PDF');
+      return;
+    }
+
+    try {
+      console.log('Dados do relatório:', dadosRelatorio);
+      
+      const doc = new jsPDF();
+      console.log('Documento PDF criado');
+      
+      // Configurações do documento
+      doc.setFont('helvetica');
+      doc.setFontSize(20);
+      
+      // Título principal
+      doc.setTextColor(34, 211, 238); // Cor cyan
+      doc.text('TEFILIN v1 - Relatório Pastoral', 105, 20, { align: 'center' });
+      
+      // Subtítulo
+      doc.setFontSize(12);
+      doc.setTextColor(100, 116, 139); // Cor slate
+      doc.text('Assembleia de Deus Vila Evangélica', 105, 30, { align: 'center' });
+      
+      // Informações do período
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Período: ${dadosRelatorio.estatisticas.dataInicio} a ${dadosRelatorio.estatisticas.dataFim}`, 20, 45);
+      doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 20, 55);
+      
+      // Estatísticas principais
+      doc.setFontSize(16);
+      doc.setTextColor(34, 211, 238);
+      doc.text('Estatísticas Principais', 20, 75);
+      
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      
+      const stats = [
+        ['Total de Visitantes', dadosRelatorio.estatisticas.totalVisitantes.toString()],
+        ['Novos Membros', dadosRelatorio.estatisticas.novosMembros.toString()],
+        ['Não Cristãos', dadosRelatorio.estatisticas.naoCristaos.toString()],
+        ['Taxa de Conversão', `${dadosRelatorio.estatisticas.taxaConversao}%`],
+        ['Visitas Agendadas', dadosRelatorio.estatisticas.visitasAgendadas.toString()],
+        ['Visitas Realizadas', dadosRelatorio.estatisticas.visitasRealizadas.toString()],
+        ['Visitas Canceladas', dadosRelatorio.estatisticas.visitasCanceladas.toString()]
+      ];
+      
+      console.log('Adicionando tabela de estatísticas...');
+      (doc as any).autoTable({
+        startY: 80,
+        head: [['Métrica', 'Valor']],
+        body: stats,
+        theme: 'grid',
+        headStyles: {
+          fillColor: [34, 211, 238],
+          textColor: [0, 0, 0],
+          fontSize: 12,
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          fillColor: [255, 255, 255],
+          textColor: [0, 0, 0],
+          fontSize: 11
+        },
+        margin: { left: 20, right: 20 }
+      });
+      
+      // Análise por tipo
+      if (Object.keys(dadosRelatorio.analisePorTipo).length > 0) {
+        console.log('Adicionando análise por tipo...');
+        const tipoData = Object.entries(dadosRelatorio.analisePorTipo).map(([tipo, quantidade]) => [tipo, (quantidade as number).toString()]);
+        
+        (doc as any).autoTable({
+          startY: (doc as any).lastAutoTable.finalY + 20,
+          head: [['Tipo de Visitante', 'Quantidade']],
+          body: tipoData,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [34, 211, 238],
+            textColor: [0, 0, 0],
+            fontSize: 12,
+            fontStyle: 'bold'
+          },
+          bodyStyles: {
+            fillColor: [255, 255, 255],
+            textColor: [0, 0, 0],
+            fontSize: 11
+          },
+          margin: { left: 20, right: 20 }
+        });
+      }
+      
+      // Análise por status
+      if (Object.keys(dadosRelatorio.analisePorStatus).length > 0) {
+        console.log('Adicionando análise por status...');
+        const statusData = Object.entries(dadosRelatorio.analisePorStatus).map(([status, quantidade]) => [status, (quantidade as number).toString()]);
+        
+        (doc as any).autoTable({
+          startY: (doc as any).lastAutoTable.finalY + 20,
+          head: [['Status', 'Quantidade']],
+          body: statusData,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [34, 211, 238],
+            textColor: [0, 0, 0],
+            fontSize: 12,
+            fontStyle: 'bold'
+          },
+          bodyStyles: {
+            fillColor: [255, 255, 255],
+            textColor: [0, 0, 0],
+            fontSize: 11
+          },
+          margin: { left: 20, right: 20 }
+        });
+      }
+      
+      // Lista de visitantes (se configurado)
+      if (configRelatorio.incluirEstatisticas && dadosRelatorio.visitantes.length > 0) {
+        console.log('Adicionando lista de visitantes...');
+        const visitantesData = dadosRelatorio.visitantes.slice(0, 20).map((v: any) => [
+          v.nome || '-',
+          v.telefone || '-',
+          v.tipo || '-',
+          v.status || '-',
+          v.created_at ? new Date(v.created_at).toLocaleDateString('pt-BR') : '-'
+        ]);
+        
+        (doc as any).autoTable({
+          startY: (doc as any).lastAutoTable.finalY + 20,
+          head: [['Nome', 'Telefone', 'Tipo', 'Status', 'Data Cadastro']],
+          body: visitantesData,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [34, 211, 238],
+            textColor: [0, 0, 0],
+            fontSize: 10,
+            fontStyle: 'bold'
+          },
+          bodyStyles: {
+            fillColor: [255, 255, 255],
+            textColor: [0, 0, 0],
+            fontSize: 9
+          },
+          margin: { left: 20, right: 20 }
+        });
+        
+        if (dadosRelatorio.visitantes.length > 20) {
+          doc.setFontSize(10);
+          doc.setTextColor(100, 116, 139);
+          doc.text(`* Mostrando apenas os primeiros 20 visitantes de ${dadosRelatorio.visitantes.length} total`, 20, (doc as any).lastAutoTable.finalY + 10);
+        }
+      }
+      
+      // Rodapé
+      const pageCount = (doc as any).internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(10);
+        doc.setTextColor(100, 116, 139);
+        doc.text(`Página ${i} de ${pageCount}`, 105, doc.internal.pageSize.height - 10, { align: 'center' });
+      }
+      
+      console.log('Salvando PDF...');
+      // Salvar o PDF
+      const filename = `relatorio_pastoral_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(filename);
+      
+      console.log('PDF gerado com sucesso!');
+      
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error);
+      alert(`Erro ao gerar PDF: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    }
+  };
+
+  // Download do relatório em texto (mantido para compatibilidade)
   const downloadRelatorio = () => {
     if (!dadosRelatorio) return;
 
@@ -633,7 +496,7 @@ Gerado em: ${new Date().toLocaleString('pt-BR')}
             <h3 className="text-white font-semibold mb-4">Evolução dos Últimos 30 Dias</h3>
             <div className="overflow-x-auto">
               <div className="flex gap-2 min-w-max">
-                {dadosRelatorio.analiseTemporal.map((item, index) => (
+                {dadosRelatorio.analiseTemporal.map((item: any, index: number) => (
                   <div key={index} className="flex flex-col items-center">
                     <div className="text-xs text-slate-400 mb-1">{item.data}</div>
                     <div 
@@ -649,16 +512,22 @@ Gerado em: ${new Date().toLocaleString('pt-BR')}
           </div>
 
           {/* Ações */}
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap">
+            <button
+              onClick={gerarRelatorioPDF}
+              className="px-6 py-3 rounded-lg bg-red-500 text-white font-semibold hover:bg-red-600 transition-colors flex items-center gap-2"
+            >
+              📄 Gerar PDF
+            </button>
             <button
               onClick={downloadRelatorio}
-              className="px-6 py-3 rounded-lg bg-blue-500 text-white font-semibold hover:bg-blue-600 transition-colors"
+              className="px-6 py-3 rounded-lg bg-blue-500 text-white font-semibold hover:bg-blue-600 transition-colors flex items-center gap-2"
             >
-              📥 Download do Relatório
+              📥 Download TXT
             </button>
             <button
               onClick={() => setRelatorioGerado(false)}
-              className="px-6 py-3 rounded-lg bg-slate-600 text-white font-semibold hover:bg-slate-500 transition-colors"
+              className="px-6 py-3 rounded-lg bg-slate-600 text-white font-semibold hover:bg-slate-500 transition-colors flex items-center gap-2"
             >
               🔄 Gerar Novo Relatório
             </button>

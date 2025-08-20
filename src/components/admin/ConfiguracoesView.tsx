@@ -78,15 +78,97 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({ onBack }) => {
     setLoading(true);
     
     try {
-      // Simulação de carregamento para demonstração
-      // TODO: Implementar quando tabela 'configuracoes' estiver criada no Supabase
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Por enquanto, manter configurações padrão
-      console.log('Configurações carregadas com valores padrão');
+      // Carregar configurações do banco de dados
+      const { data, error } = await supabase
+        .from('configuracoes')
+        .select('*');
+
+      if (error) {
+        throw error;
+      }
+
+      if (data) {
+        // Mapear configurações do banco para o estado local
+        data.forEach(config => {
+          const chave = config.chave;
+          const valor = config.valor;
+          
+          switch (chave) {
+            case 'titulo_sistema':
+              setConfigSistema(prev => ({ ...prev, tituloSistema: valor || prev.tituloSistema }));
+              break;
+            case 'subtitulo_sistema':
+              setConfigSistema(prev => ({ ...prev, subtituloSistema: valor || prev.subtituloSistema }));
+              break;
+            case 'cor_primaria':
+              setConfigSistema(prev => ({ ...prev, corPrimaria: valor || prev.corPrimaria }));
+              break;
+            case 'cor_secundaria':
+              setConfigSistema(prev => ({ ...prev, corSecundaria: valor || prev.corSecundaria }));
+              break;
+            case 'versiculo_biblico':
+              setConfigSistema(prev => ({ ...prev, versiculoBiblico: valor || prev.versiculoBiblico }));
+              break;
+            case 'referencia_versiculo':
+              setConfigSistema(prev => ({ ...prev, referenciaVersiculo: valor || prev.referenciaVersiculo }));
+              break;
+            case 'nome_igreja':
+              setConfigSistema(prev => ({ ...prev, nomeIgreja: valor || prev.nomeIgreja }));
+              break;
+            case 'endereco_igreja':
+              setConfigSistema(prev => ({ ...prev, enderecoIgreja: valor || prev.enderecoIgreja }));
+              break;
+            case 'telefone_igreja':
+              setConfigSistema(prev => ({ ...prev, telefoneIgreja: valor || prev.telefoneIgreja }));
+              break;
+            case 'email_igreja':
+              setConfigSistema(prev => ({ ...prev, emailIgreja: valor || prev.emailIgreja }));
+              break;
+            case 'incluir_logo':
+              setConfigRelatorio(prev => ({ ...prev, incluirLogo: valor === 'true' }));
+              break;
+            case 'incluir_endereco':
+              setConfigRelatorio(prev => ({ ...prev, incluirEndereco: valor === 'true' }));
+              break;
+            case 'incluir_versiculo':
+              setConfigRelatorio(prev => ({ ...prev, incluirVersiculo: valor === 'true' }));
+              break;
+            case 'fonte_titulo':
+              setConfigRelatorio(prev => ({ ...prev, fonteTitulo: valor || prev.fonteTitulo }));
+              break;
+            case 'tamanho_fonte':
+              setConfigRelatorio(prev => ({ ...prev, tamanhoFonte: parseInt(valor) || prev.tamanhoFonte }));
+              break;
+            case 'whatsapp_api_key':
+              setConfigWhatsApp(prev => ({ ...prev, apiKey: valor || prev.apiKey }));
+              break;
+            case 'whatsapp_instance_id':
+              setConfigWhatsApp(prev => ({ ...prev, instanceId: valor || prev.instanceId }));
+              break;
+            case 'whatsapp_webhook_url':
+              setConfigWhatsApp(prev => ({ ...prev, webhookUrl: valor || prev.webhookUrl }));
+              break;
+            case 'whatsapp_auto_resposta':
+              setConfigWhatsApp(prev => ({ ...prev, autoResposta: valor === 'true' }));
+              break;
+            case 'whatsapp_mensagem_padrao':
+              setConfigWhatsApp(prev => ({ ...prev, mensagemPadrao: valor || prev.mensagemPadrao }));
+              break;
+            case 'whatsapp_horario_atendimento':
+              setConfigWhatsApp(prev => ({ ...prev, horarioAtendimento: valor || prev.horarioAtendimento }));
+              break;
+            case 'whatsapp_dias_atendimento':
+              setConfigWhatsApp(prev => ({ ...prev, diasAtendimento: valor || prev.diasAtendimento }));
+              break;
+          }
+        });
+      }
+
+      console.log('Configurações carregadas com sucesso');
 
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
+      setMessage({ type: 'error', text: 'Erro ao carregar configurações. Verifique se a tabela foi criada.' });
     } finally {
       setLoading(false);
     }
@@ -101,12 +183,70 @@ const ConfiguracoesView: React.FC<ConfiguracoesViewProps> = ({ onBack }) => {
     setMessage(null);
 
     try {
-      // Simulação de salvamento para demonstração
-      // TODO: Implementar quando tabela 'configuracoes' estiver criada no Supabase
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      const configsToSave: Array<{ chave: string; valor: string; tipo: string; categoria: string }> = [];
+
+      // Mapear dados para o formato do banco
+      switch (categoria) {
+        case 'sistema':
+          configsToSave.push(
+            { chave: 'titulo_sistema', valor: dados.tituloSistema, tipo: 'text', categoria: 'sistema' },
+            { chave: 'subtitulo_sistema', valor: dados.subtituloSistema, tipo: 'text', categoria: 'sistema' },
+            { chave: 'cor_primaria', valor: dados.corPrimaria, tipo: 'color', categoria: 'sistema' },
+            { chave: 'cor_secundaria', valor: dados.corSecundaria, tipo: 'color', categoria: 'sistema' },
+            { chave: 'versiculo_biblico', valor: dados.versiculoBiblico, tipo: 'text', categoria: 'sistema' },
+            { chave: 'referencia_versiculo', valor: dados.referenciaVersiculo, tipo: 'text', categoria: 'sistema' }
+          );
+          break;
+        case 'igreja':
+          configsToSave.push(
+            { chave: 'nome_igreja', valor: dados.nomeIgreja, tipo: 'text', categoria: 'igreja' },
+            { chave: 'endereco_igreja', valor: dados.enderecoIgreja, tipo: 'text', categoria: 'igreja' },
+            { chave: 'telefone_igreja', valor: dados.telefoneIgreja, tipo: 'text', categoria: 'igreja' },
+            { chave: 'email_igreja', valor: dados.emailIgreja, tipo: 'text', categoria: 'igreja' }
+          );
+          break;
+        case 'relatorios':
+          configsToSave.push(
+            { chave: 'incluir_logo', valor: dados.incluirLogo.toString(), tipo: 'boolean', categoria: 'relatorios' },
+            { chave: 'incluir_endereco', valor: dados.incluirEndereco.toString(), tipo: 'boolean', categoria: 'relatorios' },
+            { chave: 'incluir_versiculo', valor: dados.incluirVersiculo.toString(), tipo: 'boolean', categoria: 'relatorios' },
+            { chave: 'fonte_titulo', valor: dados.fonteTitulo, tipo: 'text', categoria: 'relatorios' },
+            { chave: 'tamanho_fonte', valor: dados.tamanhoFonte.toString(), tipo: 'number', categoria: 'relatorios' },
+            { chave: 'orientacao_pagina', valor: dados.orientacaoPagina, tipo: 'text', categoria: 'relatorios' },
+            { chave: 'formato_data', valor: dados.formatoData, tipo: 'text', categoria: 'relatorios' }
+          );
+          break;
+        case 'whatsapp':
+          configsToSave.push(
+            { chave: 'whatsapp_api_key', valor: dados.apiKey, tipo: 'text', categoria: 'whatsapp' },
+            { chave: 'whatsapp_instance_id', valor: dados.instanceId, tipo: 'text', categoria: 'whatsapp' },
+            { chave: 'whatsapp_webhook_url', valor: dados.webhookUrl, tipo: 'text', categoria: 'whatsapp' },
+            { chave: 'whatsapp_auto_resposta', valor: dados.autoResposta.toString(), tipo: 'boolean', categoria: 'whatsapp' },
+            { chave: 'whatsapp_mensagem_padrao', valor: dados.mensagemPadrao, tipo: 'text', categoria: 'whatsapp' },
+            { chave: 'whatsapp_horario_atendimento', valor: dados.horarioAtendimento, tipo: 'text', categoria: 'whatsapp' },
+            { chave: 'whatsapp_dias_atendimento', valor: dados.diasAtendimento, tipo: 'text', categoria: 'whatsapp' }
+          );
+          break;
+      }
+
+      // Salvar cada configuração no banco
+      for (const config of configsToSave) {
+        const { error } = await supabase
+          .from('configuracoes')
+          .upsert({
+            chave: config.chave,
+            valor: config.valor,
+            tipo: config.tipo,
+            categoria: config.categoria
+          }, { onConflict: 'chave' });
+
+        if (error) {
+          throw error;
+        }
+      }
+
+      setMessage({ type: 'success', text: `Configurações de ${categoria} salvas com sucesso!` });
       console.log(`Configurações de ${categoria} salvas:`, dados);
-      setMessage({ type: 'success', text: 'Configurações salvas com sucesso!' });
 
     } catch (error: any) {
       console.error('Erro ao salvar configurações:', error);

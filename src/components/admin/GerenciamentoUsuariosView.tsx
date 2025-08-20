@@ -18,7 +18,7 @@ const GerenciamentoUsuariosView: React.FC<GerenciamentoUsuariosViewProps> = ({ o
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingUser, setEditingUser] = useState<ProfileRow | null>(null);
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
   
   const [novoUsuario, setNovoUsuario] = useState<NovoUsuario>({
     nome: '',
@@ -73,19 +73,38 @@ const GerenciamentoUsuariosView: React.FC<GerenciamentoUsuariosViewProps> = ({ o
     try {
       if (editingUser) {
         // Atualizar usuário existente
+        const updateData: any = {
+          nome: novoUsuario.nome,
+          email: novoUsuario.email,
+          role: novoUsuario.role,
+          ativo: novoUsuario.ativo,
+          updated_at: new Date().toISOString()
+        };
+
+        // Se uma nova senha foi fornecida, atualizar a senha
+        if (novoUsuario.senha.trim() && editingUser.user_id) {
+          const { error: passwordError } = await supabase.auth.admin.updateUserById(
+            editingUser.user_id,
+            { password: novoUsuario.senha }
+          );
+          
+          if (passwordError) {
+            console.error('Erro ao atualizar senha:', passwordError);
+            setMessage({ type: 'warning', text: 'Usuário atualizado, mas houve erro ao alterar a senha. Entre em contato com o suporte.' });
+          } else {
+            setMessage({ type: 'success', text: 'Usuário e senha atualizados com sucesso!' });
+          }
+        } else {
+          setMessage({ type: 'success', text: 'Usuário atualizado com sucesso! (senha mantida)' });
+        }
+
+        // Atualizar perfil
         const { error } = await supabase
           .from('profiles')
-          .update({
-            nome: novoUsuario.nome,
-            email: novoUsuario.email,
-            role: novoUsuario.role,
-            ativo: novoUsuario.ativo,
-            updated_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', editingUser.id);
 
         if (error) throw error;
-        setMessage({ type: 'success', text: 'Usuário atualizado com sucesso!' });
 
       } else {
         // Criar novo usuário
@@ -253,6 +272,8 @@ const GerenciamentoUsuariosView: React.FC<GerenciamentoUsuariosViewProps> = ({ o
           <div className={`mt-4 p-3 rounded-lg border ${
             message.type === 'success' 
               ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' 
+              : message.type === 'warning'
+              ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-300'
               : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
           }`}>
             {message.text}
@@ -419,7 +440,7 @@ const GerenciamentoUsuariosView: React.FC<GerenciamentoUsuariosViewProps> = ({ o
                 />
               </div>
 
-              {!editingUser && (
+              {!editingUser ? (
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">
                     Senha *
@@ -433,6 +454,23 @@ const GerenciamentoUsuariosView: React.FC<GerenciamentoUsuariosViewProps> = ({ o
                     className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
                     required
                   />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                    Nova Senha (opcional)
+                  </label>
+                  <input
+                    type="password"
+                    name="senha"
+                    value={novoUsuario.senha}
+                    onChange={handleInputChange}
+                    placeholder="Deixe em branco para manter a senha atual"
+                    className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+                  />
+                  <p className="text-xs text-slate-400 mt-1">
+                    Deixe em branco para manter a senha atual do usuário
+                  </p>
                 </div>
               )}
 

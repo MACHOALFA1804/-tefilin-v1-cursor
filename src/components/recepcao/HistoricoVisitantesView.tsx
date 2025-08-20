@@ -101,26 +101,43 @@ const HistoricoVisitantesView: React.FC<HistoricoVisitantesViewProps> = ({ onBac
     }
   };
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    return new Date(dateString).toLocaleDateString('pt-BR');
+  };
+
+  const formatPhone = (phone?: string) => {
+    if (!phone) return '-';
+    return phone.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+  };
+
   return (
     <main className="max-w-7xl mx-auto px-4 py-6">
-      {/* Filtros e Pesquisa */}
-      <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5 mb-6">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-300 grid place-items-center">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
-              <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="m15 18-6-6 6-6"/>
             </svg>
-          </div>
+            <span>Voltar</span>
+          </button>
           <div>
-            <h2 className="text-white text-lg font-semibold">Histórico de Visitantes</h2>
-            <p className="text-slate-400 text-sm">Pesquise e filtre os visitantes cadastrados</p>
+            <h1 className="text-white text-3xl font-bold">Histórico de Visitantes</h1>
+            <p className="text-slate-400 text-lg mt-1">Visualizar e gerenciar visitantes cadastrados</p>
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+      {/* Filtros e Pesquisa */}
+      <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {/* Pesquisa */}
+          <div className="md:col-span-2">
+            <label className="block text-slate-300 text-sm font-medium mb-2">
               Pesquisar
             </label>
             <input
@@ -128,18 +145,19 @@ const HistoricoVisitantesView: React.FC<HistoricoVisitantesViewProps> = ({ onBac
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Nome, telefone ou congregação..."
-              className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+              className="w-full px-4 py-3 rounded-lg bg-slate-700/60 border border-slate-600 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
             />
           </div>
 
+          {/* Filtro por Tipo */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Filtrar por Tipo
+            <label className="block text-slate-300 text-sm font-medium mb-2">
+              Tipo
             </label>
             <select
               value={filterType}
               onChange={(e) => setFilterType(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+              className="w-full px-4 py-3 rounded-lg bg-slate-700/60 border border-slate-600 text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
             >
               <option value="Todos os tipos">Todos os tipos</option>
               <option value="Cristão">Cristão</option>
@@ -149,14 +167,15 @@ const HistoricoVisitantesView: React.FC<HistoricoVisitantesViewProps> = ({ onBac
             </select>
           </div>
 
+          {/* Filtro por Status */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
-              Filtrar por Status
+            <label className="block text-slate-300 text-sm font-medium mb-2">
+              Status
             </label>
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+              className="w-full px-4 py-3 rounded-lg bg-slate-700/60 border border-slate-600 text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
             >
               <option value="Todos os status">Todos os status</option>
               <option value="Aguardando">Aguardando</option>
@@ -169,190 +188,153 @@ const HistoricoVisitantesView: React.FC<HistoricoVisitantesViewProps> = ({ onBac
         </div>
       </div>
 
-      {/* Estatísticas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
-          <div className="text-2xl font-bold text-cyan-400">{visitantes.length}</div>
-          <div className="text-slate-400 text-sm">Total Exibidos</div>
-        </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
-          <div className="text-2xl font-bold text-emerald-400">
-            {visitantes.filter(v => v.status === 'Visitado').length}
-          </div>
-          <div className="text-slate-400 text-sm">Visitados</div>
-        </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
-          <div className="text-2xl font-bold text-yellow-400">
-            {visitantes.filter(v => v.status === 'Aguardando Visita').length}
-          </div>
-          <div className="text-slate-400 text-sm">Aguardando Visita</div>
-        </div>
-        <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
-          <div className="text-2xl font-bold text-purple-400">
-            {visitantes.filter(v => v.status === 'Novo Membro').length}
-          </div>
-          <div className="text-slate-400 text-sm">Novos Membros</div>
-        </div>
-      </div>
-
       {/* Tabela de Visitantes */}
-      <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-white font-semibold">Lista de Visitantes</h3>
-          <button
-            onClick={onBack}
-            className="px-3 py-1.5 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 text-sm font-semibold hover:bg-slate-600"
-          >
-            ← Voltar
-          </button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-slate-400">
-                <th className="px-3 py-2 font-medium">Nome</th>
-                <th className="px-3 py-2 font-medium">Telefone</th>
-                <th className="px-3 py-2 font-medium">Tipo</th>
-                <th className="px-3 py-2 font-medium">Status</th>
-                <th className="px-3 py-2 font-medium">Congregação</th>
-                <th className="px-3 py-2 font-medium">Data</th>
-                <th className="px-3 py-2 font-medium">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+      <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center">
+            <div className="text-slate-400">Carregando visitantes...</div>
+          </div>
+        ) : visitantes.length === 0 ? (
+          <div className="p-8 text-center">
+            <div className="text-slate-400">Nenhum visitante encontrado</div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-slate-700/60">
                 <tr>
-                  <TableCell colSpan={7} className="text-center text-slate-400">
-                    Carregando visitantes...
-                  </TableCell>
+                  <th className="px-3 py-4 text-left text-slate-300 font-semibold border-b border-slate-600">
+                    Nome
+                  </th>
+                  <th className="px-3 py-4 text-left text-slate-300 font-semibold border-b border-slate-600">
+                    Telefone
+                  </th>
+                  <th className="px-3 py-4 text-left text-slate-300 font-semibold border-b border-slate-600">
+                    Tipo
+                  </th>
+                  <th className="px-3 py-4 text-left text-slate-300 font-semibold border-b border-slate-600">
+                    Status
+                  </th>
+                  <th className="px-3 py-4 text-left text-slate-300 font-semibold border-b border-slate-600">
+                    Data Cadastro
+                  </th>
+                  <th className="px-3 py-4 text-center text-slate-300 font-semibold border-b border-slate-600">
+                    Ações
+                  </th>
                 </tr>
-              ) : visitantes.length === 0 ? (
-                <tr>
-                  <TableCell colSpan={7} className="text-center text-slate-400">
-                    Nenhum visitante encontrado
-                  </TableCell>
-                </tr>
-              ) : (
-                visitantes.map((visitante, i) => (
-                  <tr key={visitante.id ?? i} className={i % 2 ? 'bg-slate-900/40' : ''}>
-                    <TableCell className="font-medium">{visitante.nome || '-'}</TableCell>
-                    <TableCell className="text-slate-300">{visitante.telefone || '-'}</TableCell>
+              </thead>
+              <tbody className="divide-y divide-slate-700/60">
+                {visitantes.map((visitante) => (
+                  <tr key={visitante.id} className="hover:bg-slate-700/30 transition-colors">
                     <TableCell>
-                      <Chip color={getTipoColor(visitante.tipo)}>{visitante.tipo || '—'}</Chip>
+                      <div className="font-medium text-white">{visitante.nome}</div>
+                      {visitante.quem_acompanha && (
+                        <div className="text-xs text-slate-400">
+                          Acompanhado por: {visitante.quem_acompanha}
+                        </div>
+                      )}
                     </TableCell>
                     <TableCell>
-                      <Chip color={getStatusColor(visitante.status)}>{visitante.status || '—'}</Chip>
+                      <div className="text-white">{formatPhone(visitante.telefone)}</div>
                     </TableCell>
-                    <TableCell className="text-slate-300">
-                      {visitante.congregacao_origem || '-'}
+                    <TableCell>
+                      <Chip color={getTipoColor(visitante.tipo)}>
+                        {visitante.tipo}
+                      </Chip>
                     </TableCell>
-                    <TableCell className="text-slate-400">
-                      {visitante.created_at ? new Date(visitante.created_at).toLocaleDateString('pt-BR') : '-'}
+                    <TableCell>
+                      <Chip color={getStatusColor(visitante.status)}>
+                        {visitante.status}
+                      </Chip>
                     </TableCell>
-                    <TableCell className="text-slate-400">
-                      <div className="flex items-center gap-2">
-                        <button 
-                          title="Ver detalhes"
-                          onClick={() => setSelectedVisitante(visitante)}
-                          className="hover:text-cyan-300"
+                    <TableCell>
+                      <div className="text-slate-300">{formatDate(visitante.created_at)}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => handleWhatsApp(visitante)}
+                          className="p-2 rounded-lg bg-green-500/20 text-green-300 hover:bg-green-500/30 transition-colors"
+                          title="Enviar WhatsApp"
                         >
                           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 12a5 5 0 1 1 5-5 5 5 0 0 1-5 5z" />
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893A11.821 11.821 0 0020.885 3.488"/>
                           </svg>
                         </button>
-                        <button 
-                          title="WhatsApp"
-                          onClick={() => handleWhatsApp(visitante)}
-                          className="hover:text-green-400"
+                        <button
+                          onClick={() => setSelectedVisitante(visitante)}
+                          className="p-2 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-colors"
+                          title="Ver Detalhes"
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M20 3.5A10.5 10.5 0 0 0 3.5 20L2 22l2-.5A10.5 10.5 0 1 0 20 3.5zm-7 16a8.5 8.5 0 0 1-4.3-1.2L6 19l.7-2.6A8.6 8.6 0 1 1 13 19.5z" />
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                            <circle cx="12" cy="12" r="3"/>
                           </svg>
                         </button>
                       </div>
                     </TableCell>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Modal de Detalhes */}
       {selectedVisitante && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-xl border border-cyan-500/30 p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-white text-lg font-semibold">Detalhes do Visitante</h3>
-              <button
-                onClick={() => setSelectedVisitante(null)}
-                className="text-slate-400 hover:text-white"
-              >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
-            
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-slate-800 rounded-xl border border-cyan-500/30 p-6 max-w-md w-full">
+            <h3 className="text-white text-lg font-semibold mb-4">Detalhes do Visitante</h3>
             <div className="space-y-3">
               <div>
                 <span className="text-slate-400 text-sm">Nome:</span>
-                <div className="text-white font-medium">{selectedVisitante.nome}</div>
+                <div className="text-white">{selectedVisitante.nome}</div>
               </div>
               <div>
                 <span className="text-slate-400 text-sm">Telefone:</span>
-                <div className="text-white">{selectedVisitante.telefone}</div>
+                <div className="text-white">{formatPhone(selectedVisitante.telefone)}</div>
               </div>
               <div>
                 <span className="text-slate-400 text-sm">Tipo:</span>
-                <div className="mt-1">
-                  <Chip color={getTipoColor(selectedVisitante.tipo)}>{selectedVisitante.tipo}</Chip>
-                </div>
+                <div className="text-white">{selectedVisitante.tipo}</div>
               </div>
               <div>
                 <span className="text-slate-400 text-sm">Status:</span>
-                <div className="mt-1">
-                  <Chip color={getStatusColor(selectedVisitante.status)}>{selectedVisitante.status}</Chip>
-                </div>
+                <div className="text-white">{selectedVisitante.status}</div>
               </div>
               {selectedVisitante.quem_acompanha && (
                 <div>
-                  <span className="text-slate-400 text-sm">Quem Acompanha:</span>
+                  <span className="text-slate-400 text-sm">Acompanhado por:</span>
                   <div className="text-white">{selectedVisitante.quem_acompanha}</div>
                 </div>
               )}
               {selectedVisitante.congregacao_origem && (
                 <div>
-                  <span className="text-slate-400 text-sm">Congregação de Origem:</span>
+                  <span className="text-slate-400 text-sm">Congregação:</span>
                   <div className="text-white">{selectedVisitante.congregacao_origem}</div>
                 </div>
               )}
               {selectedVisitante.observacoes && (
                 <div>
                   <span className="text-slate-400 text-sm">Observações:</span>
-                  <div className="text-white text-sm">{selectedVisitante.observacoes}</div>
+                  <div className="text-white">{selectedVisitante.observacoes}</div>
                 </div>
               )}
-              <div>
-                <span className="text-slate-400 text-sm">Data de Cadastro:</span>
-                <div className="text-white">
-                  {selectedVisitante.created_at ? new Date(selectedVisitante.created_at).toLocaleString('pt-BR') : '-'}
-                </div>
-              </div>
             </div>
-
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => setSelectedVisitante(null)}
-                className="flex-1 px-4 py-2 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 font-semibold hover:bg-slate-600"
+                className="flex-1 px-4 py-2 bg-slate-600 text-white rounded-lg hover:bg-slate-500 transition-colors"
               >
                 Fechar
               </button>
               <button
-                onClick={() => handleWhatsApp(selectedVisitante)}
-                className="flex-1 px-4 py-2 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-500"
+                onClick={() => {
+                  handleWhatsApp(selectedVisitante);
+                  setSelectedVisitante(null);
+                }}
+                className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"
               >
                 WhatsApp
               </button>

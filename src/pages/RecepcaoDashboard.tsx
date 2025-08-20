@@ -1,92 +1,88 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
 import CadastroVisitantesView from '../components/recepcao/CadastroVisitantesView';
 import HistoricoVisitantesView from '../components/recepcao/HistoricoVisitantesView';
-import ResponsiveLayout from '../components/layout/ResponsiveLayout';
-import { useResponsiveClasses } from '../hooks/useResponsive';
+import ThemeToggle from '../components/common/ThemeToggle';
 
 type ActiveView = 'dashboard' | 'cadastro' | 'historico';
 
 const RecepcaoDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
-  const classes = useResponsiveClasses();
 
   // Renderizar view baseado na seleção
   const renderContent = () => {
     switch (activeView) {
       case 'cadastro':
-        return (
-          <ResponsiveLayout
-            title="Cadastro de Visitantes"
-            subtitle="Registrar novos visitantes na igreja"
-            showBackButton
-            onBack={() => setActiveView('dashboard')}
-          >
-            <CadastroVisitantesView onBack={() => setActiveView('dashboard')} />
-          </ResponsiveLayout>
-        );
+        return <CadastroVisitantesView onBack={() => setActiveView('dashboard')} />;
       case 'historico':
-        return (
-          <ResponsiveLayout
-            title="Histórico de Visitantes"
-            subtitle="Visualizar e gerenciar visitantes cadastrados"
-            showBackButton
-            onBack={() => setActiveView('dashboard')}
-          >
-            <HistoricoVisitantesView onBack={() => setActiveView('dashboard')} />
-          </ResponsiveLayout>
-        );
+        return <HistoricoVisitantesView onBack={() => setActiveView('dashboard')} />;
       default:
         return (
-          <ResponsiveLayout
-            title="Dashboard de Recepção"
-            subtitle="Gerenciamento de visitantes da igreja"
-          >
+          <main className="max-w-7xl mx-auto px-4 py-6">
+            {/* Header com Toggle de Tema */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h1 className="text-white text-3xl font-bold">Dashboard de Recepção</h1>
+                <p className="text-slate-400 text-lg mt-1">Gestão de visitantes e agendamentos</p>
+              </div>
+              <div className="flex items-center gap-4">
+                <ThemeToggle />
+                <button
+                  onClick={() => navigate('/')}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Sair
+                </button>
+              </div>
+            </div>
+
             {/* Dashboard de Navegação */}
-            <div className={classes.grid.cards}>
-              {/* Cadastrar Visitantes */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Cadastro de Visitantes */}
               <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-6 hover:bg-slate-800/80 transition-colors">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-cyan-500/20 text-cyan-300 grid place-items-center">
+                  <div className="w-12 h-12 rounded-xl bg-blue-500/20 text-blue-300 grid place-items-center">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm-9 9a9 9 0 0 1 18 0z" />
+                      <path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
                     </svg>
                   </div>
                   <div>
-                    <h2 className="text-white text-xl font-semibold">Cadastrar Visitantes</h2>
-                    <p className="text-slate-400 text-sm">Registrar novos visitantes na igreja</p>
+                    <h2 className="text-white text-xl font-semibold">Cadastro de Visitantes</h2>
+                    <p className="text-slate-400 text-sm">Novos visitantes</p>
                   </div>
                 </div>
                 <p className="text-slate-300 text-sm mb-4">
-                  Formulário completo para cadastro de visitantes com campos obrigatórios: Nome, Telefone e classificação (Cristão, Não cristão, Pregador).
+                  Cadastrar novos visitantes com informações completas, incluindo tipo, status e observações.
                 </p>
                 <button 
                   onClick={() => setActiveView('cadastro')}
-                  className="w-full px-4 py-3 rounded-lg bg-cyan-400 text-slate-900 font-bold shadow-md shadow-cyan-500/30 hover:bg-cyan-300 transition-colors"
+                  className="w-full px-4 py-3 rounded-lg bg-blue-400 text-slate-900 font-bold shadow-md shadow-blue-500/30 hover:bg-blue-300 transition-colors"
                 >
-                  Acessar Cadastro
+                  Cadastrar Visitante
                 </button>
               </div>
 
               {/* Histórico de Visitantes */}
               <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-6 hover:bg-slate-800/80 transition-colors">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-emerald-500/20 text-emerald-300 grid place-items-center">
+                  <div className="w-12 h-12 rounded-xl bg-green-500/20 text-green-300 grid place-items-center">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
-                      <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                     </svg>
                   </div>
                   <div>
                     <h2 className="text-white text-xl font-semibold">Histórico de Visitantes</h2>
-                    <p className="text-slate-400 text-sm">Visualizar e pesquisar visitantes cadastrados</p>
+                    <p className="text-slate-400 text-sm">Consulta e gestão</p>
                   </div>
                 </div>
                 <p className="text-slate-300 text-sm mb-4">
-                  Tabela completa com todos os visitantes, funcionalidades de pesquisa por nome, telefone ou congregação e filtros por tipo.
+                  Visualizar, filtrar e gerenciar todos os visitantes cadastrados no sistema.
                 </p>
                 <button 
                   onClick={() => setActiveView('historico')}
-                  className="w-full px-4 py-3 rounded-lg bg-emerald-400 text-slate-900 font-bold shadow-md shadow-emerald-500/30 hover:bg-emerald-300 transition-colors"
+                  className="w-full px-4 py-3 rounded-lg bg-green-400 text-slate-900 font-bold shadow-md shadow-green-500/30 hover:bg-green-300 transition-colors"
                 >
                   Ver Histórico
                 </button>
@@ -96,25 +92,25 @@ const RecepcaoDashboard: React.FC = () => {
             {/* Estatísticas Rápidas */}
             <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
-                <div className="text-2xl font-bold text-cyan-400">0</div>
-                <div className="text-slate-400 text-sm">Hoje</div>
+                <div className="text-2xl font-bold text-blue-400">0</div>
+                <div className="text-slate-400 text-sm">Total Visitantes</div>
+              </div>
+              <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
+                <div className="text-2xl font-bold text-green-400">0</div>
+                <div className="text-slate-400 text-sm">Aguardando</div>
+              </div>
+              <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
+                <div className="text-2xl font-bold text-purple-400">0</div>
+                <div className="text-slate-400 text-sm">Visitados</div>
               </div>
               <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
                 <div className="text-2xl font-bold text-emerald-400">0</div>
-                <div className="text-slate-400 text-sm">Esta Semana</div>
-              </div>
-              <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
-                <div className="text-2xl font-bold text-yellow-400">0</div>
-                <div className="text-slate-400 text-sm">Este Mês</div>
-              </div>
-              <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center">
-                <div className="text-2xl font-bold text-rose-400">0</div>
-                <div className="text-slate-400 text-sm">Total</div>
+                <div className="text-slate-400 text-sm">Novos Membros</div>
               </div>
             </div>
 
             <footer className="text-center text-cyan-400 text-xs mt-10">DEV EMERSON 2025</footer>
-          </ResponsiveLayout>
+          </main>
         );
     }
   };

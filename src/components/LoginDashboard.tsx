@@ -1,283 +1,141 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabaseClient";
-
-interface LoginCredentials {
-  email: string;
-  password: string;
-}
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
 
 const LoginDashboard: React.FC = () => {
-  const [credentials, setCredentials] = useState<LoginCredentials>({
-    email: "",
-    password: "",
-  });
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setCredentials((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
   const navigate = useNavigate();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLogin = async () => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: credentials.email,
-      password: credentials.password,
-    });
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (data.user) {
-      // Try to fetch the user's role from a 'profiles' table
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("user_id", data.user.id)
-        .single();
-
-      if (profileError || !profile) {
-        console.error("Erro ao buscar perfil do usuário:", profileError?.message || "Perfil não encontrado.");
-        alert("Erro ao buscar informações do usuário. Tente novamente ou entre em contato com o suporte.");
-        await supabase.auth.signOut(); // Log out the user if role can't be fetched
+      if (error) {
+        setError(error.message);
         return;
       }
 
-      setCredentials({ email: "", password: "" });
+      if (data.user) {
+        // Buscar informações do usuário
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('role, nome')
+          .eq('user_id', data.user.id)
+          .single();
 
-      if (profile.role === "admin") {
-        navigate("/admin");
-      } else if (profile.role === "pastor") {
-        navigate("/pastor");
-      } else if (profile.role === "recepcionista") {
-        navigate("/recepcao");
-      } else {
-        alert("Você não tem permissão para acessar o sistema.");
-        await supabase.auth.signOut();
+        if (profileError) {
+          console.error('Erro ao buscar informações do usuário:', profileError);
+          setError('Erro ao buscar informações do usuário');
+          return;
+        }
+
+        // Redirecionar baseado no papel do usuário
+        switch (profile.role) {
+          case 'admin':
+            navigate('/admin');
+            break;
+          case 'pastor':
+            navigate('/pastor');
+            break;
+          case 'recepcao':
+            navigate('/recepcao');
+            break;
+          default:
+            setError('Papel de usuário não reconhecido');
+        }
       }
+    } catch (error) {
+      console.error('Erro durante login:', error);
+      setError('Erro inesperado durante o login');
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") {
-      handleLogin();
-    }
-  };
-
-  const containerStyle: React.CSSProperties = {
-    minHeight: "100vh",
-    background:
-      "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "15px",
-    fontFamily:
-      '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-  };
-
-  const cardStyle: React.CSSProperties = {
-    width: "100%",
-    maxWidth: "280px",
-    backgroundColor: "rgba(30, 41, 59, 0.9)",
-    backdropFilter: "blur(10px)",
-    borderRadius: "16px",
-    padding: "20px",
-    border: "1px solid rgba(34, 211, 238, 0.3)",
-    boxShadow: "0 20px 40px -12px rgba(0, 0, 0, 0.25)",
-  };
-
-  const logoStyle: React.CSSProperties = {
-    width: "50px",
-    height: "50px",
-    backgroundColor: "#22d3ee",
-    borderRadius: "50%",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    margin: "0 auto 12px",
-    boxShadow: "0 6px 16px rgba(34, 211, 238, 0.3)",
-  };
-
-  const titleStyle: React.CSSProperties = {
-    fontSize: "22px",
-    fontWeight: "bold",
-    color: "white",
-    textAlign: "center",
-    marginBottom: "6px",
-    letterSpacing: "0.5px",
-  };
-
-  const subtitleStyle: React.CSSProperties = {
-    fontSize: "12px",
-    color: "#94a3b8",
-    textAlign: "center",
-    fontWeight: "500",
-    marginBottom: "16px",
-  };
-
-  const verseBoxStyle: React.CSSProperties = {
-    backgroundColor: "rgba(51, 65, 85, 0.4)",
-    borderRadius: "10px",
-    padding: "12px",
-    border: "1px solid rgba(34, 211, 238, 0.2)",
-    marginBottom: "16px",
-  };
-
-  const verseTextStyle: React.CSSProperties = {
-    color: "#22d3ee",
-    fontSize: "11px",
-    fontWeight: "500",
-    lineHeight: "1.4",
-    textAlign: "center",
-    marginBottom: "4px",
-  };
-
-  const verseRefStyle: React.CSSProperties = {
-    color: "rgba(34, 211, 238, 0.7)",
-    fontSize: "9px",
-    textAlign: "center",
-    fontWeight: "500",
-  };
-
-  const labelStyle: React.CSSProperties = {
-    display: "block",
-    color: "white",
-    fontSize: "12px",
-    fontWeight: "600",
-    marginBottom: "6px",
-  };
-
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px 12px",
-    backgroundColor: "rgba(51, 65, 85, 0.5)",
-    border: "1px solid rgba(34, 211, 238, 0.3)",
-    borderRadius: "10px",
-    color: "white",
-    fontSize: "13px",
-    outline: "none",
-    transition: "all 0.2s ease",
-    boxSizing: "border-box",
-  };
-
-  const buttonStyle: React.CSSProperties = {
-    width: "100%",
-    padding: "10px",
-    backgroundColor: "#22d3ee",
-    color: "#0f172a",
-    border: "none",
-    borderRadius: "10px",
-    fontSize: "14px",
-    fontWeight: "bold",
-    cursor: "pointer",
-    transition: "all 0.2s ease",
-    boxShadow: "0 4px 10px rgba(34, 211, 238, 0.2)",
-    marginTop: "16px",
-  };
-
-  const footerStyle: React.CSSProperties = {
-    textAlign: "center",
-    marginTop: "16px",
-  };
-
-  const devTextStyle: React.CSSProperties = {
-    color: "#22d3ee",
-    fontSize: "10px",
-    fontWeight: "bold",
-    letterSpacing: "1px",
   };
 
   return (
-    <div style={containerStyle}>
-      <div style={{ width: "100%", maxWidth: "280px" }}>
-        <div style={cardStyle}>
-          {/* Logo */}
-          <div style={logoStyle}>
-            <svg width="24" height="24" fill="#0f172a" viewBox="0 0 24 24">
-              <path d="M10.5 2.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 .5.5v2a.5.5 0 0 1-.5.5h-2a.5.5 0 0 1-.5-.5v-2zM12 6a.5.5 0 0 1 .5.5v1h1a.5.5 0 0 1 .5.5v4a.5.5 0 0 1-.5.5H10a.5.5 0 0 1-.5-.5V8a.5.5 0 0 1 .5-.5h1v-1A.5.5 0 0 1 12 6z" />
-              <path d="M2 13.692V16a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2.308l-8-2.667-8 2.667zM4 9v2.692l8-2.667L20 11.692V9a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2z" />
-            </svg>
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-white text-3xl font-bold">TEFILIN v1</h1>
+          <p className="text-slate-400 text-lg mt-1">Sistema de Gestão de Visitantes</p>
+        </div>
+
+        {/* Card de Login */}
+        <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-8">
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 rounded-xl bg-cyan-400 text-slate-900 font-black text-2xl grid place-items-center mx-auto mb-4">
+              iA
+            </div>
+            <h2 className="text-white text-xl font-semibold">Acesso ao Sistema</h2>
+            <p className="text-slate-400 text-sm mt-1">Faça login para continuar</p>
           </div>
 
-          <h1 style={titleStyle}>TEFILIN v1</h1>
-          <p style={subtitleStyle}>Assembleia de Deus Vila Evangélica</p>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="block text-slate-300 text-sm font-medium mb-2">
+                E-mail
+              </label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                placeholder="seu@email.com"
+                required
+              />
+            </div>
 
-          {/* Bible Verse */}
-          <div style={verseBoxStyle}>
-            <p style={verseTextStyle}>
-              "E tudo quanto fizerdes, fazei-o de todo o coração, como ao
-              Senhor"
+            <div>
+              <label htmlFor="password" className="block text-slate-300 text-sm font-medium mb-2">
+                Senha
+              </label>
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+
+            {error && (
+              <div className="px-4 py-3 rounded-lg bg-red-500/15 border border-red-500/30 text-red-300 text-sm">
+                {error}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full px-4 py-3 rounded-lg bg-cyan-400 text-slate-900 font-bold shadow-md shadow-cyan-500/30 hover:bg-cyan-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? 'Entrando...' : 'Entrar'}
+            </button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-slate-400 text-sm">
+              "E tudo quanto fizerdes, fazei-o de todo o coração, como ao Senhor"
             </p>
-            <p style={verseRefStyle}>Colossenses 3:23</p>
+            <p className="text-cyan-400 text-xs mt-1">Colossenses 3:23</p>
           </div>
-
-          {/* Login Form */}
-          <div style={{ marginBottom: "12px" }}>
-            <label style={labelStyle}>E-mail</label>
-            <input
-              type="email"
-              name="email"
-              value={credentials.email}
-              onChange={handleInputChange}
-              onKeyPress={handleKeyPress}
-              placeholder="seu@email.com"
-              style={inputStyle}
-              onFocus={(e) => {
-                e.target.style.borderColor = "#22d3ee";
-                e.target.style.boxShadow = "0 0 0 2px rgba(34, 211, 238, 0.2)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "rgba(34, 211, 238, 0.3)";
-                e.target.style.boxShadow = "none";
-              }}
-            />
-          </div>
-
-          <div style={{ marginBottom: "12px" }}>
-            <label style={labelStyle}>Senha</label>
-            <input
-              type="password"
-              name="password"
-              value={credentials.password}
-              onChange={handleInputChange}
-              onKeyPress={handleKeyPress}
-              placeholder="••••••••"
-              style={inputStyle}
-              onFocus={(e) => {
-                e.target.style.borderColor = "#22d3ee";
-                e.target.style.boxShadow = "0 0 0 2px rgba(34, 211, 238, 0.2)";
-              }}
-              onBlur={(e) => {
-                e.target.style.borderColor = "rgba(34, 211, 238, 0.3)";
-                e.target.style.boxShadow = "none";
-              }}
-            />
-          </div>
-
-          <button
-            onClick={handleLogin}
-            style={buttonStyle}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = "#06b6d4";
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = "#22d3ee";
-            }}
-          >
-            Entrar no Sistema
-          </button>
         </div>
 
-        <div style={footerStyle}>
-          <p style={devTextStyle}>DEV EMERSON 2025</p>
-        </div>
+        <footer className="text-center text-cyan-400 text-xs mt-8">DEV EMERSON 2025</footer>
       </div>
     </div>
   );

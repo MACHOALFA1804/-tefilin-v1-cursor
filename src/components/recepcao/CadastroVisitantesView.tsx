@@ -76,12 +76,31 @@ const CadastroVisitantesView: React.FC<CadastroVisitantesViewProps> = ({ onBack 
   };
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-6">
+    <main className="max-w-4xl mx-auto px-4 py-4">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={onBack}
+            className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="m15 18-6-6 6-6"/>
+            </svg>
+            <span>Voltar</span>
+          </button>
+          <div>
+            <h1 className="text-white text-2xl font-bold">Cadastro de Visitantes</h1>
+            <p className="text-slate-400 text-sm">Registrar novos visitantes na igreja</p>
+          </div>
+        </div>
+      </div>
+
       {/* Formulário de Cadastro */}
-      <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-6">
-        <div className="flex items-center gap-3 mb-6">
+      <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5">
+        <div className="flex items-center gap-3 mb-4">
           <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-300 grid place-items-center">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 12a5 5 0 1 0-5-5 5 5 0 0 0 5 5Zm-9 9a9 9 0 0 1 18 0z" />
             </svg>
           </div>
@@ -103,51 +122,53 @@ const CadastroVisitantesView: React.FC<CadastroVisitantesViewProps> = ({ onBack 
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Campos obrigatórios */}
+          {/* Campos principais */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Nome */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-slate-300 text-sm font-medium mb-2">
                 Nome Completo *
               </label>
               <input
                 type="text"
                 name="nome"
-                value={visitante.nome || ''}
+                value={visitante.nome}
                 onChange={handleInputChange}
+                className="w-full px-3 py-2 rounded-lg bg-slate-700/60 border border-slate-600 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
                 placeholder="Digite o nome completo"
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
                 required
               />
             </div>
 
+            {/* Telefone */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-slate-300 text-sm font-medium mb-2">
                 Telefone *
               </label>
               <input
                 type="tel"
                 name="telefone"
-                value={visitante.telefone || ''}
+                value={visitante.telefone}
                 onChange={handleInputChange}
-                placeholder="11999999999 (apenas números)"
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+                className="w-full px-3 py-2 rounded-lg bg-slate-700/60 border border-slate-600 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+                placeholder="11999999999"
                 required
               />
             </div>
           </div>
 
-          {/* Classificação */}
+          {/* Campos secundários */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Tipo */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Classificação *
+              <label className="block text-slate-300 text-sm font-medium mb-2">
+                Tipo de Visitante
               </label>
               <select
                 name="tipo"
-                value={visitante.tipo || 'Cristão'}
+                value={visitante.tipo}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
-                required
+                className="w-full px-3 py-2 rounded-lg bg-slate-700/60 border border-slate-600 text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
               >
                 <option value="Cristão">Cristão</option>
                 <option value="Não Cristão">Não Cristão</option>
@@ -156,18 +177,21 @@ const CadastroVisitantesView: React.FC<CadastroVisitantesViewProps> = ({ onBack 
               </select>
             </div>
 
+            {/* Status */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                Status Inicial
+              <label className="block text-slate-300 text-sm font-medium mb-2">
+                Status
               </label>
               <select
                 name="status"
-                value={visitante.status || 'Aguardando'}
+                value={visitante.status}
                 onChange={handleInputChange}
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+                className="w-full px-3 py-2 rounded-lg bg-slate-700/60 border border-slate-600 text-white focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
               >
                 <option value="Aguardando">Aguardando</option>
                 <option value="Aguardando Visita">Aguardando Visita</option>
+                <option value="Visitado">Visitado</option>
+                <option value="Novo Membro">Novo Membro</option>
                 <option value="Pendente">Pendente</option>
               </select>
             </div>
@@ -175,79 +199,71 @@ const CadastroVisitantesView: React.FC<CadastroVisitantesViewProps> = ({ onBack 
 
           {/* Campos adicionais */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Quem Acompanha */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-slate-300 text-sm font-medium mb-2">
                 Quem Acompanha
               </label>
               <input
                 type="text"
                 name="quem_acompanha"
-                value={visitante.quem_acompanha || ''}
+                value={visitante.quem_acompanha}
                 onChange={handleInputChange}
-                placeholder="Nome de quem trouxe o visitante"
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+                className="w-full px-3 py-2 rounded-lg bg-slate-700/60 border border-slate-600 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+                placeholder="Nome de quem acompanha"
               />
             </div>
 
+            {/* Congregação de Origem */}
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">
+              <label className="block text-slate-300 text-sm font-medium mb-2">
                 Congregação de Origem
               </label>
               <input
                 type="text"
                 name="congregacao_origem"
-                value={visitante.congregacao_origem || ''}
+                value={visitante.congregacao_origem}
                 onChange={handleInputChange}
-                placeholder="De qual congregação vem"
-                className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50"
+                className="w-full px-3 py-2 rounded-lg bg-slate-700/60 border border-slate-600 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+                placeholder="Nome da congregação"
               />
             </div>
           </div>
 
           {/* Observações */}
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">
+            <label className="block text-slate-300 text-sm font-medium mb-2">
               Observações
             </label>
             <textarea
               name="observacoes"
-              value={visitante.observacoes || ''}
+              value={visitante.observacoes}
               onChange={handleInputChange}
-              placeholder="Informações adicionais sobre o visitante..."
               rows={3}
-              className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50 resize-none"
+              className="w-full px-3 py-2 rounded-lg bg-slate-700/60 border border-slate-600 text-white placeholder-slate-400 focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition-colors"
+              placeholder="Informações adicionais sobre o visitante"
             />
           </div>
 
           {/* Botões */}
-          <div className="flex gap-3 pt-4">
-            <button
-              type="button"
-              onClick={onBack}
-              className="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 font-semibold hover:bg-slate-600 transition-colors"
-            >
-              Voltar
-            </button>
+          <div className="flex items-center gap-3 pt-3">
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 px-4 py-2 rounded-lg bg-cyan-400 text-slate-900 font-bold shadow-md shadow-cyan-500/30 hover:bg-cyan-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-5 py-2 bg-cyan-400 text-slate-900 font-bold rounded-lg shadow-md shadow-cyan-500/30 hover:bg-cyan-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Salvando...' : 'Salvar Visitante'}
+              {loading ? 'Cadastrando...' : 'Cadastrar Visitante'}
+            </button>
+            
+            <button
+              type="button"
+              onClick={onBack}
+              className="px-5 py-2 bg-slate-600 text-white font-medium rounded-lg hover:bg-slate-500 transition-colors"
+            >
+              Cancelar
             </button>
           </div>
         </form>
-      </div>
-
-      {/* Instruções */}
-      <div className="mt-6 rounded-xl border border-slate-700 bg-slate-800/40 p-4">
-        <h3 className="text-white font-semibold mb-2">Instruções:</h3>
-        <ul className="text-slate-300 text-sm space-y-1">
-          <li>• Campos marcados com * são obrigatórios</li>
-          <li>• O telefone deve conter apenas números (sem símbolos ou espaços)</li>
-          <li>• Comunicação com visitantes será feita apenas via WhatsApp</li>
-          <li>• Classifique corretamente o tipo de visitante para melhor acompanhamento</li>
-        </ul>
       </div>
     </main>
   );

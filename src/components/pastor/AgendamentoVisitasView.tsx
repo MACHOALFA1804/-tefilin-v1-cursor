@@ -48,7 +48,7 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
         .from('visitas')
         .select(`
           *,
-          visitantes (nome, telefone, tipo)
+          visitantes:visitante_id (nome, telefone, tipo)
         `)
         .in('status', ['Agendada', 'Reagendada'])
         .order('data_agendada', { ascending: true });
@@ -76,11 +76,23 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
     }
 
     try {
+      // Obter usuário logado para salvar como pastor_id
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      const userId = userData.user?.id;
+      if (!userId) {
+        throw new Error('Sessão expirada. Faça login novamente.');
+      }
+
+      // Normalizar data para ISO (compatível com timestamp com fuso)
+      const dataISO = new Date(novaVisita.data_agendada as string).toISOString();
+
       const { error } = await supabase
         .from('visitas')
         .insert([{
           ...novaVisita,
-          pastor_id: 'current-user-id' // TODO: pegar do usuário logado
+          data_agendada: dataISO,
+          pastor_id: userId
         }]);
 
       if (error) throw error;
@@ -105,7 +117,7 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
 
     } catch (error: any) {
       console.error('Erro ao agendar visita:', error);
-      alert(`Erro ao agendar visita: ${error.message}`);
+      alert(`Erro ao agendar visita: ${error.message || 'Erro desconhecido'}`);
     }
   };
 

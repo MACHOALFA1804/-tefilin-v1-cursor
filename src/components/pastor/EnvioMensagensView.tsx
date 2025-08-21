@@ -86,7 +86,7 @@ const EnvioMensagensView: React.FC<EnvioMensagensViewProps> = ({ onBack }) => {
         .from('mensagens')
         .select(`
           *,
-          visitantes (nome, telefone)
+          visitantes:visitante_id (nome, telefone)
         `)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -129,14 +129,63 @@ const EnvioMensagensView: React.FC<EnvioMensagensViewProps> = ({ onBack }) => {
       .replace(/{evento}/g, 'de domingo às 19h'); // Pode ser dinâmico no futuro
   };
 
+  const getBaseMensagem = () => {
+    // Prioriza o texto editado pelo usuário; se vazio e houver template, usa o conteúdo do template
+    if (mensagemPersonalizada && mensagemPersonalizada.trim()) return mensagemPersonalizada;
+    if (templateSelecionado) return templateSelecionado.conteudo;
+    return '';
+  };
+
+  const enviarMensagemPara = async (visitante: VisitanteRow) => {
+    try {
+      const baseMensagem = getBaseMensagem();
+      if (!baseMensagem.trim()) {
+        alert('Selecione um template ou digite uma mensagem.');
+        return;
+      }
+
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      const usuarioId = userData.user?.id;
+      if (!usuarioId) throw new Error('Sessão expirada. Faça login novamente.');
+
+      const conteudoFinal = processarTemplate(baseMensagem, visitante);
+
+      // Salvar no banco
+      const { error: insertError } = await supabase
+        .from('mensagens')
+        .insert([
+          {
+            visitante_id: visitante.id,
+            usuario_id: usuarioId,
+            template_usado: templateSelecionado?.nome || 'Mensagem Editada',
+            conteudo: conteudoFinal,
+            status_envio: 'Enviada',
+            data_envio: new Date().toISOString()
+          }
+        ]);
+      if (insertError) throw insertError;
+
+      // Abrir WhatsApp para o visitante
+      if (visitante.telefone) {
+        const whatsappUrl = `https://wa.me/55${visitante.telefone}?text=${encodeURIComponent(conteudoFinal)}`;
+        window.open(whatsappUrl, '_blank');
+      }
+
+    } catch (error: any) {
+      console.error('Erro ao enviar mensagem individual:', error);
+      alert(`Erro ao enviar mensagem: ${error.message || 'Erro desconhecido'}`);
+    }
+  };
+
   const enviarMensagens = async () => {
     if (visitantesSelecionados.length === 0) {
       alert('Selecione pelo menos um visitante!');
       return;
     }
 
-    const mensagem = templateSelecionado ? templateSelecionado.conteudo : mensagemPersonalizada;
-    if (!mensagem.trim()) {
+    const baseMensagem = getBaseMensagem();
+    if (!baseMensagem.trim()) {
       alert('Selecione um template ou digite uma mensagem personalizada!');
       return;
     }
@@ -144,18 +193,21 @@ const EnvioMensagensView: React.FC<EnvioMensagensViewProps> = ({ onBack }) => {
     setEnviando(true);
 
     try {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      const usuarioId = userData.user?.id;
+      if (!usuarioId) throw new Error('Sessão expirada. Faça login novamente.');
+
       const mensagensParaEnviar = visitantesSelecionados.map(visitanteId => {
         const visitante = visitantes.find(v => v.id === visitanteId);
         if (!visitante) return null;
 
-        const conteudoFinal = templateSelecionado 
-          ? processarTemplate(mensagem, visitante)
-          : mensagem;
+        const conteudoFinal = processarTemplate(baseMensagem, visitante);
 
         return {
           visitante_id: visitanteId,
-          usuario_id: 'current-user-id', // TODO: pegar do usuário logado
-          template_usado: templateSelecionado?.nome || 'Mensagem Personalizada',
+          usuario_id: usuarioId,
+          template_usado: templateSelecionado?.nome || 'Mensagem Editada',
           conteudo: conteudoFinal,
           status_envio: 'Enviada' as const,
           data_envio: new Date().toISOString()
@@ -165,21 +217,16 @@ const EnvioMensagensView: React.FC<EnvioMensagensViewProps> = ({ onBack }) => {
       // Salvar no banco de dados
       const { error } = await supabase
         .from('mensagens')
-        .insert(mensagensParaEnviar);
+        .insert(mensagensParaEnviar as any);
 
       if (error) throw error;
 
-      // Abrir WhatsApp para cada visitante (simulação)
+      // Abrir WhatsApp para cada visitante
       for (const visitanteId of visitantesSelecionados) {
         const visitante = visitantes.find(v => v.id === visitanteId);
         if (visitante && visitante.telefone) {
-          const conteudoFinal = templateSelecionado 
-            ? processarTemplate(mensagem, visitante)
-            : mensagem;
-          
+          const conteudoFinal = processarTemplate(baseMensagem, visitante);
           const whatsappUrl = `https://wa.me/55${visitante.telefone}?text=${encodeURIComponent(conteudoFinal)}`;
-          
-          // Abrir em nova aba com delay para não bloquear popup
           setTimeout(() => {
             window.open(whatsappUrl, '_blank');
           }, visitantesSelecionados.indexOf(visitanteId) * 1000);
@@ -188,13 +235,11 @@ const EnvioMensagensView: React.FC<EnvioMensagensViewProps> = ({ onBack }) => {
 
       alert(`Mensagens enviadas para ${visitantesSelecionados.length} visitante(s)!`);
       setVisitantesSelecionados([]);
-      setTemplateSelecionado(null);
-      setMensagemPersonalizada('');
       loadData();
 
     } catch (error: any) {
       console.error('Erro ao enviar mensagens:', error);
-      alert(`Erro ao enviar mensagens: ${error.message}`);
+      alert(`Erro ao enviar mensagens: ${error.message || 'Erro desconhecido'}`);
     } finally {
       setEnviando(false);
     }
@@ -246,7 +291,7 @@ const EnvioMensagensView: React.FC<EnvioMensagensViewProps> = ({ onBack }) => {
                   key={template.id}
                   onClick={() => {
                     setTemplateSelecionado(template);
-                    setMensagemPersonalizada('');
+                    setMensagemPersonalizada(template.conteudo);
                   }}
                   className={`
                     p-3 rounded-lg border text-left transition-colors
@@ -267,35 +312,28 @@ const EnvioMensagensView: React.FC<EnvioMensagensViewProps> = ({ onBack }) => {
 
           {/* Preview da Mensagem */}
           <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-5">
-            <h3 className="text-white font-semibold mb-4">Preview da Mensagem</h3>
-            
-            {templateSelecionado ? (
-              <div>
-                <div className="mb-2">
-                  <span className="text-emerald-300 text-sm font-medium">
-                    Template: {templateSelecionado.nome}
-                  </span>
-                </div>
-                <div className="bg-slate-900/60 border border-slate-700 rounded-lg p-4">
-                  <div className="text-slate-200 text-sm whitespace-pre-wrap">
-                    {processarTemplate(templateSelecionado.conteudo, { nome: '[Nome do Visitante]' } as VisitanteRow)}
-                  </div>
-                </div>
+            <h3 className="text-white font-semibold mb-4">Mensagem</h3>
+            <textarea
+              value={mensagemPersonalizada}
+              onChange={(e) => setMensagemPersonalizada(e.target.value)}
+              placeholder={templateSelecionado ? 'Edite a mensagem do template...' : 'Digite sua mensagem personalizada aqui...'}
+              rows={6}
+              className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50 resize-none"
+            />
+            <div className="text-xs text-slate-400 mt-2">
+              Dica: use {`{nome}`} e {`{evento}`} que serão substituídos automaticamente.
+            </div>
+
+            <div className="mt-4">
+              <div className="text-slate-400 text-sm mb-1">Preview (primeiro selecionado):</div>
+              <div className="bg-slate-900/60 border border-slate-700 rounded-lg p-3 text-slate-200 text-sm whitespace-pre-wrap">
+                {(() => {
+                  const primeiro = visitantes.find(v => v.id === visitantesSelecionados[0]);
+                  const base = getBaseMensagem();
+                  return primeiro ? processarTemplate(base, primeiro) : (templateSelecionado ? processarTemplate(getBaseMensagem(), { nome: '[Nome do Visitante]' } as VisitanteRow) : getBaseMensagem());
+                })()}
               </div>
-            ) : (
-              <div>
-                <div className="mb-2">
-                  <span className="text-cyan-300 text-sm font-medium">Mensagem Personalizada</span>
-                </div>
-                <textarea
-                  value={mensagemPersonalizada}
-                  onChange={(e) => setMensagemPersonalizada(e.target.value)}
-                  placeholder="Digite sua mensagem personalizada aqui..."
-                  rows={6}
-                  className="w-full px-3 py-2 rounded-lg bg-slate-900 text-slate-200 border border-slate-700 focus:outline-none focus:border-cyan-500/50 resize-none"
-                />
-              </div>
-            )}
+            </div>
 
             <div className="mt-4 flex gap-3">
               <button
@@ -309,11 +347,10 @@ const EnvioMensagensView: React.FC<EnvioMensagensViewProps> = ({ onBack }) => {
                 <button
                   onClick={() => {
                     setTemplateSelecionado(null);
-                    setMensagemPersonalizada('');
                   }}
                   className="px-4 py-2 rounded-lg bg-slate-700 text-slate-300 border border-slate-600 font-semibold hover:bg-slate-600"
                 >
-                  Limpar
+                  Limpar Template
                 </button>
               )}
             </div>
@@ -382,6 +419,13 @@ const EnvioMensagensView: React.FC<EnvioMensagensViewProps> = ({ onBack }) => {
                       <div className="text-slate-400 text-xs">{visitante.telefone}</div>
                       <div className="text-slate-300 text-xs">{visitante.tipo}</div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); enviarMensagemPara(visitante); }}
+                      className="px-2 py-1 text-xs rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30"
+                    >
+                      Enviar
+                    </button>
                   </label>
                 ))}
               </div>

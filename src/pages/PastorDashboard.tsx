@@ -93,6 +93,7 @@ const PastorDashboard: React.FC = () => {
                 <p className="text-slate-400 text-lg mt-1">Acompanhamento espiritual e gestão de visitantes</p>
               </div>
               <div className="flex items-center gap-4">
+                <div className="px-2 py-1 rounded bg-cyan-400 text-slate-900 text-xs font-bold">AI</div>
                 <ThemeToggle />
                 <button
                   onClick={() => navigate('/')}

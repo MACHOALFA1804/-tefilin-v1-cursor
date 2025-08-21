@@ -291,7 +291,14 @@ const EnvioMensagensView: React.FC<EnvioMensagensViewProps> = ({ onBack }) => {
                   key={template.id}
                   onClick={() => {
                     setTemplateSelecionado(template);
-                    setMensagemPersonalizada(template.conteudo);
+                    // Se há exatamente um visitante selecionado, aplica o nome no editor
+                    const primeiroId = visitantesSelecionados[0];
+                    const selectedVisitor = visitantes.find(v => v.id === primeiroId);
+                    if (selectedVisitor && visitantesSelecionados.length === 1) {
+                      setMensagemPersonalizada(processarTemplate(template.conteudo, selectedVisitor));
+                    } else {
+                      setMensagemPersonalizada(template.conteudo);
+                    }
                   }}
                   className={`
                     p-3 rounded-lg border text-left transition-colors
@@ -325,7 +332,20 @@ const EnvioMensagensView: React.FC<EnvioMensagensViewProps> = ({ onBack }) => {
             </div>
 
             <div className="mt-4">
-              <div className="text-slate-400 text-sm mb-1">Preview (primeiro selecionado):</div>
+              <div className="text-slate-400 text-sm mb-1 flex items-center justify-between">
+                <span>Preview (primeiro selecionado):</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const primeiro = visitantes.find(v => v.id === visitantesSelecionados[0]);
+                    const base = getBaseMensagem() || templateSelecionado?.conteudo || '';
+                    if (primeiro) setMensagemPersonalizada(processarTemplate(base, primeiro));
+                  }}
+                  className="px-2 py-1 text-xs rounded bg-slate-700 text-slate-300 border border-slate-600 hover:bg-slate-600"
+                >
+                  Aplicar nome ao editor
+                </button>
+              </div>
               <div className="bg-slate-900/60 border border-slate-700 rounded-lg p-3 text-slate-200 text-sm whitespace-pre-wrap">
                 {(() => {
                   const primeiro = visitantes.find(v => v.id === visitantesSelecionados[0]);

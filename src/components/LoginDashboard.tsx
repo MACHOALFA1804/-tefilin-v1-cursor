@@ -47,6 +47,24 @@ const LoginDashboard: React.FC = () => {
     }
   };
 
+  const inputStyle = {
+    color: '#ffffff',
+    backgroundColor: '#334155',
+    border: '1px solid #475569',
+    borderRadius: '8px',
+    padding: '12px 16px',
+    width: '100%',
+    fontSize: '16px',
+    outline: 'none',
+    transition: 'all 0.2s ease',
+  };
+
+  const inputFocusStyle = {
+    ...inputStyle,
+    borderColor: '#06b6d4',
+    boxShadow: '0 0 0 2px rgba(6, 182, 212, 0.5)',
+  };
+
   return (
     <div className="min-h-screen bg-slate-900 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
@@ -76,9 +94,11 @@ const LoginDashboard: React.FC = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                style={inputStyle}
                 placeholder="seu@email.com"
                 required
+                onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
+                onBlur={(e) => Object.assign(e.target.style, inputStyle)}
               />
             </div>
 
@@ -91,9 +111,11 @@ const LoginDashboard: React.FC = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-slate-700/50 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                style={inputStyle}
                 placeholder="••••••••"
                 required
+                onFocus={(e) => Object.assign(e.target.style, inputFocusStyle)}
+                onBlur={(e) => Object.assign(e.target.style, inputStyle)}
               />
             </div>
 

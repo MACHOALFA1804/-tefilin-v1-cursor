@@ -62,12 +62,12 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
     setLoading(true);
     
     try {
-      // Carregar visitantes que precisam de visita (foco em não cristãos)
+      // Carregar visitantes que precisam de visita (incluindo todos os tipos e status atualizados)
       const { data: visitantes, error: visitantesError } = await supabase
         .from('visitantes')
         .select('*')
-        .in('tipo', ['Não Cristão', 'Outro'])
-        .in('status', ['Aguardando Visita', 'Pendente'])
+        .in('tipo', ['Não Cristão', 'Cristão', 'Pregador', 'Outro'])
+        .in('status', ['Aguardando', 'Aguardando Visita', 'Pendente'])
         .order('created_at', { ascending: false });
 
       if (visitantesError) {
@@ -77,24 +77,30 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
       
       setVisitantesDisponiveis(visitantes || []);
 
-      // Carregar visitas agendadas (próximos 3 meses para não sobrecarregar)
+      // Carregar visitas (últimos 2 meses + próximos 6 meses para histórico completo)
       const hoje = new Date();
-      const tresMesesAFrente = new Date();
-      tresMesesAFrente.setMonth(hoje.getMonth() + 3);
+      const doisMesesAtras = new Date();
+      doisMesesAtras.setMonth(hoje.getMonth() - 2);
+      const seisMesesAFrente = new Date();
+      seisMesesAFrente.setMonth(hoje.getMonth() + 6);
 
-      // Primeiro carregamos as visitas
+      console.log('Carregando visitas entre:', doisMesesAtras.toISOString().split('T')[0], 'e', seisMesesAFrente.toISOString());
+
+      // Carregar todas as visitas (incluindo realizadas e passadas para histórico)
       const { data: visitas, error: visitasError } = await supabase
         .from('visitas')
         .select('*')
-        .in('status', ['Agendada', 'Reagendada'])
-        .gte('data_agendada', hoje.toISOString())
-        .lte('data_agendada', tresMesesAFrente.toISOString())
+        .in('status', ['Agendada', 'Reagendada', 'Realizada', 'Cancelada', 'Pendente'])
+        .gte('data_agendada', doisMesesAtras.toISOString().split('T')[0])
+        .lte('data_agendada', seisMesesAFrente.toISOString())
         .order('data_agendada', { ascending: true });
 
       if (visitasError) {
         console.error('Erro ao carregar visitas:', visitasError);
         throw visitasError;
       }
+
+      console.log('Visitas carregadas:', visitas);
 
       // Depois carregamos os dados dos visitantes separadamente
       let visitasComVisitantes = visitas || [];
@@ -107,7 +113,7 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
         if (visitanteIds.length > 0) {
           const { data: visitantesData, error: visitantesDataError } = await supabase
             .from('visitantes')
-            .select('id, nome, telefone, tipo')
+            .select('id, nome, telefone, tipo, congregacao_origem, quem_acompanha')
             .in('id', visitanteIds);
 
           if (visitantesDataError) {
@@ -123,7 +129,7 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
         }
       }
 
-      
+      console.log('Visitas com visitantes:', visitasComVisitantes);
       setVisitasAgendadas(visitasComVisitantes);
 
     } catch (error: any) {
@@ -136,6 +142,7 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
 
   useEffect(() => {
     loadData();
+    console.log('Componente carregado, iniciando loadData...');
   }, []);
 
   const validateForm = (): boolean => {
@@ -321,9 +328,19 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
       const data = new Date(mesAtual.getFullYear(), mesAtual.getMonth(), dia);
       const dataStr = data.toISOString().split('T')[0];
       
-      const visitasDoDia = visitasAgendadas.filter(visita => 
-        visita.data_agendada?.split('T')[0] === dataStr
-      );
+      // Debug: log para verificar as datas
+      console.log(`Verificando dia ${dia}: dataStr = ${dataStr}`);
+      
+      const visitasDoDia = visitasAgendadas.filter(visita => {
+        if (!visita.data_agendada) return false;
+        
+        const visitaDataStr = visita.data_agendada.split('T')[0];
+        console.log(`Comparando: ${visitaDataStr} === ${dataStr} = ${visitaDataStr === dataStr}`);
+        
+        return visitaDataStr === dataStr;
+      });
+
+      console.log(`Dia ${dia}: ${visitasDoDia.length} visitas encontradas`);
 
       dias.push({
         data: dataStr,
@@ -382,6 +399,38 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
     const agora = new Date();
     agora.setHours(agora.getHours() + 1); // Pelo menos 1 hora no futuro
     return agora.toISOString().slice(0, 16);
+  };
+
+  // Função para obter a cor do badge baseado no tipo de visitante
+  const getTipoColor = (tipo: string) => {
+    switch (tipo) {
+      case 'Cristão':
+        return 'bg-blue-500/20 text-blue-300';
+      case 'Não Cristão':
+        return 'bg-red-500/20 text-red-300';
+      case 'Pregador':
+        return 'bg-purple-500/20 text-purple-300';
+      default:
+        return 'bg-gray-500/20 text-gray-300';
+    }
+  };
+
+  // Função para obter a cor do badge baseado no status
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Aguardando':
+        return 'bg-yellow-500/20 text-yellow-300';
+      case 'Aguardando Visita':
+        return 'bg-orange-500/20 text-orange-300';
+      case 'Visitado':
+        return 'bg-green-500/20 text-green-300';
+      case 'Novo Membro':
+        return 'bg-emerald-500/20 text-emerald-300';
+      case 'Pendente':
+        return 'bg-red-500/20 text-red-300';
+      default:
+        return 'bg-gray-500/20 text-gray-300';
+    }
   };
 
   const diasCalendario = gerarCalendario();
@@ -462,6 +511,18 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
                 const temVisitas = item.visitas.length > 0;
                 const isHoje = item.data === new Date().toISOString().split('T')[0];
                 const isMesAtual = new Date(item.data).getMonth() === mesAtual.getMonth();
+                const isPassado = new Date(item.data) < new Date(new Date().toISOString().split('T')[0]);
+                
+                // Separar visitas por status
+                const visitasFuturas = item.visitas.filter(v => 
+                  ['Agendada', 'Reagendada'].includes(v.status || '')
+                );
+                const visitasRealizadas = item.visitas.filter(v => 
+                  v.status === 'Realizada'
+                );
+                const visitasCanceladas = item.visitas.filter(v => 
+                  v.status === 'Cancelada'
+                );
 
                 return (
                   <div
@@ -472,7 +533,12 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
                         item.disponivel ? 'border-slate-700 bg-slate-900/40 hover:bg-slate-900/60' : 
                         'border-slate-800 bg-slate-800/60 opacity-50'}
                       ${isHoje ? 'ring-2 ring-cyan-400' : ''}
-                      ${temVisitas ? 'bg-green-500/20 border-green-500/40' : ''}
+                      ${temVisitas ? (
+                        visitasFuturas.length > 0 ? 'bg-green-500/20 border-green-500/40' :
+                        visitasRealizadas.length > 0 ? 'bg-blue-500/20 border-blue-500/40' :
+                        visitasCanceladas.length > 0 ? 'bg-red-500/20 border-red-500/40' :
+                        'bg-gray-500/20 border-gray-500/40'
+                      ) : ''}
                     `}
                   >
                     <div className="text-center h-full flex flex-col justify-between">
@@ -481,8 +547,21 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
                       </div>
                       {temVisitas && (
                         <div className="mt-auto">
-                          <div className="w-2 h-2 rounded-full bg-green-400 mx-auto mb-1"></div>
-                          <div className="text-xs text-green-300">
+                          {visitasFuturas.length > 0 && (
+                            <div className="w-2 h-2 rounded-full bg-green-400 mx-auto mb-0.5"></div>
+                          )}
+                          {visitasRealizadas.length > 0 && (
+                            <div className="w-2 h-2 rounded-full bg-blue-400 mx-auto mb-0.5"></div>
+                          )}
+                          {visitasCanceladas.length > 0 && (
+                            <div className="w-2 h-2 rounded-full bg-red-400 mx-auto mb-0.5"></div>
+                          )}
+                          <div className={`text-xs ${
+                            visitasFuturas.length > 0 ? 'text-green-300' :
+                            visitasRealizadas.length > 0 ? 'text-blue-300' :
+                            visitasCanceladas.length > 0 ? 'text-red-300' :
+                            'text-gray-300'
+                          }`}>
                             {item.visitas.length}
                           </div>
                         </div>
@@ -494,14 +573,22 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
             </div>
 
             {/* Legenda */}
-            <div className="mt-4 flex items-center gap-4 text-xs text-slate-400">
+            <div className="mt-4 flex items-center gap-4 text-xs text-slate-400 flex-wrap">
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 rounded border-2 border-cyan-400"></div>
                 <span>Hoje</span>
               </div>
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 rounded bg-green-500/20 border border-green-500/40"></div>
-                <span>Com visitas</span>
+                <span>Agendadas</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-blue-500/20 border border-blue-500/40"></div>
+                <span>Realizadas</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-red-500/20 border border-red-500/40"></div>
+                <span>Canceladas</span>
               </div>
             </div>
           </div>
@@ -514,17 +601,29 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white font-semibold">Próximas Visitas</h3>
               <span className="text-xs text-slate-400">
-                {visitasAgendadas.length} total
+                {visitasAgendadas.filter(v => 
+                  ['Agendada', 'Reagendada'].includes(v.status || '') && 
+                  new Date(v.data_agendada || '') >= new Date()
+                ).length} futuras
               </span>
             </div>
             
             {loading ? (
               <div className="text-slate-400">Carregando...</div>
-            ) : visitasAgendadas.length === 0 ? (
+            ) : visitasAgendadas.filter(v => 
+              ['Agendada', 'Reagendada'].includes(v.status || '') && 
+              new Date(v.data_agendada || '') >= new Date()
+            ).length === 0 ? (
               <div className="text-slate-400 text-sm">Nenhuma visita agendada</div>
             ) : (
               <div className="space-y-3 max-h-80 overflow-y-auto">
-                {visitasAgendadas.slice(0, 8).map((visita) => (
+                {visitasAgendadas
+                  .filter(v => 
+                    ['Agendada', 'Reagendada'].includes(v.status || '') && 
+                    new Date(v.data_agendada || '') >= new Date()
+                  )
+                  .slice(0, 8)
+                  .map((visita) => (
                   <div key={visita.id} className="rounded-lg border border-slate-700 p-3 bg-slate-900/40 hover:bg-slate-900/60 transition-colors">
                     <div className="text-white font-medium text-sm">
                       {(visita as any).visitantes?.nome || 'Nome não encontrado'}
@@ -532,7 +631,22 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
                     <div className="text-slate-400 text-xs mt-1">
                       {visita.data_agendada ? formatarData(visita.data_agendada) : '-'}
                     </div>
-                    <div className="flex items-center gap-2 mt-2">
+                    {(visita as any).visitantes?.telefone && (
+                      <div className="text-slate-500 text-xs">
+                        {(visita as any).visitantes.telefone}
+                      </div>
+                    )}
+                    {(visita as any).visitantes?.congregacao_origem && (
+                      <div className="text-slate-500 text-xs">
+                        {(visita as any).visitantes.congregacao_origem}
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      {(visita as any).visitantes?.tipo && (
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${getTipoColor((visita as any).visitantes.tipo)}`}>
+                          {(visita as any).visitantes.tipo}
+                        </span>
+                      )}
                       <span className={`px-2 py-0.5 rounded-full text-xs
                         ${visita.tipo_visita === 'Presencial' ? 'bg-blue-500/20 text-blue-300' :
                           visita.tipo_visita === 'Telefone' ? 'bg-green-500/20 text-green-300' :
@@ -546,6 +660,11 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
                         {visita.status}
                       </span>
                     </div>
+                    {visita.observacoes && (
+                      <div className="text-slate-400 text-xs mt-2 italic">
+                        {visita.observacoes.substring(0, 60)}{visita.observacoes.length > 60 ? '...' : ''}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -571,16 +690,25 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
                   <div key={visitante.id} className="rounded-lg border border-slate-700 p-3 bg-slate-900/40 hover:bg-slate-900/60 transition-colors">
                     <div className="text-white font-medium text-sm">{visitante.nome}</div>
                     <div className="text-slate-400 text-xs">{visitante.telefone}</div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className={`px-2 py-0.5 rounded-full text-xs
-                        ${visitante.tipo === 'Não Cristão' ? 'bg-red-500/20 text-red-300' :
-                          'bg-gray-500/20 text-gray-300'}`}>
+                    {visitante.congregacao_origem && (
+                      <div className="text-slate-500 text-xs mt-1">{visitante.congregacao_origem}</div>
+                    )}
+                    {visitante.quem_acompanha && (
+                      <div className="text-slate-500 text-xs">Com: {visitante.quem_acompanha}</div>
+                    )}
+                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${getTipoColor(visitante.tipo || '')}`}>
                         {visitante.tipo}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full text-xs bg-yellow-500/20 text-yellow-300">
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(visitante.status || '')}`}>
                         {visitante.status}
                       </span>
                     </div>
+                    {visitante.observacoes && (
+                      <div className="text-slate-400 text-xs mt-2 italic">
+                        {visitante.observacoes.substring(0, 40)}{visitante.observacoes.length > 40 ? '...' : ''}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -623,7 +751,8 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
                   <option value="">Selecione um visitante</option>
                   {visitantesDisponiveis.map((visitante) => (
                     <option key={visitante.id} value={visitante.id}>
-                      {visitante.nome} - {visitante.tipo}
+                      {visitante.nome} - {visitante.tipo} 
+                      {visitante.congregacao_origem ? ` (${visitante.congregacao_origem})` : ''}
                     </option>
                   ))}
                 </select>

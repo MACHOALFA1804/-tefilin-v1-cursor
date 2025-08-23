@@ -76,24 +76,35 @@ const AgendamentoVisitasView: React.FC<AgendamentoVisitasViewProps> = ({ onBack 
     }
 
     try {
-      // Obter usuário logado para salvar como pastor_id
+      // Obter usuário logado e seu perfil (profiles.id será usado como pastor_id)
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
-      const userId = userData.user?.id;
-      if (!userId) {
+      const authUserId = userData.user?.id;
+      if (!authUserId) {
         throw new Error('Sessão expirada. Faça login novamente.');
       }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, role, ativo')
+        .eq('user_id', authUserId)
+        .single();
+      if (profileError) throw profileError;
+      if (!profile?.id) throw new Error('Perfil do usuário não encontrado.');
+      if (profile.ativo === false) throw new Error('Usuário desativado. Contate o administrador.');
 
       // Normalizar data para ISO (compatível com timestamp com fuso)
       const dataISO = new Date(novaVisita.data_agendada as string).toISOString();
 
       const { error } = await supabase
         .from('visitas')
-        .insert([{
-          ...novaVisita,
-          data_agendada: dataISO,
-          pastor_id: userId
-        }]);
+        .insert([
+          {
+            ...novaVisita,
+            data_agendada: dataISO,
+            pastor_id: profile.id
+          }
+        ]);
 
       if (error) throw error;
 

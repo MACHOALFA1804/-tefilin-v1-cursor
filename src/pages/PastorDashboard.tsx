@@ -285,28 +285,29 @@ const PastorDashboard: React.FC = () => {
       <main className="max-w-7xl mx-auto px-4 py-6">
         {/* Header com Toggle de Tema */}
         <div className="flex items-center justify-between mb-6">
-          <div>
-            <div className="flex items-center justify-between">
-              <h1 className="text-white text-3xl font-bold">
-                Dashboard Pastoral
-              </h1>
-              <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/50">
-                <p className="text-slate-300 text-sm italic text-center leading-relaxed">
-                  "E tudo quanto fizerdes, fazei-o de todo o coração, como ao Senhor"
-                </p>
-                <p className="text-cyan-400 text-xs text-center mt-1 font-semibold">
-                  Colossenses 3:23
-                </p>
-              </div>
-            </div>
+          <div className="flex-1">
+            <h1 className="text-white text-3xl font-bold">
+              Dashboard Pastoral
+            </h1>
             <p className="text-slate-400 text-lg mt-3">
-              Sincronização em tempo real ativada 🔴
+              Sincronização em tempo real ativado 🔴
             </p>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="px-2 py-1 rounded bg-cyan-400 text-slate-900 text-xs font-bold">
-              AI
+          
+          {/* Versículo posicionado no centro-direita */}
+          <div className="flex-1 flex justify-center">
+            <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/50 max-w-sm">
+              <p className="text-slate-300 text-sm italic text-center leading-relaxed">
+                "E tudo quanto fizerdes, fazei-o de todo o coração, como ao Senhor"
+              </p>
+              <p className="text-cyan-400 text-xs text-center mt-1 font-semibold">
+                Colossenses 3:23
+              </p>
             </div>
+          </div>
+
+          {/* Controles no lado direito */}
+          <div className="flex items-center gap-4 flex-1 justify-end">
             <div className="px-2 py-1 rounded bg-green-400 text-slate-900 text-xs font-bold">
               LIVE
             </div>

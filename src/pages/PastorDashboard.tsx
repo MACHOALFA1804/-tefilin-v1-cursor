@@ -58,25 +58,29 @@ const PastorDashboard: React.FC = () => {
       id: "dados",
       title: "Dados dos Visitantes",
       subtitle: "Atualização automática",
-      description: "Visualize e gerencie informações completas dos visitantes cadastrados.",
+      description:
+        "Visualize e gerencie informações completas dos visitantes cadastrados.",
       buttonText: "Acessar Dados",
-      iconPath: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
+      iconPath:
+        "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
       bgColor: "bg-blue-500/20",
       textColor: "text-blue-300",
       shadowColor: "shadow-blue-500/30",
-      hoverColor: "hover:bg-blue-300"
+      hoverColor: "hover:bg-blue-300",
     },
     {
       id: "agendamento",
       title: "Agendamento de Visitas",
       subtitle: "Tempo real",
-      description: "Agende, acompanhe e gerencie visitas pastorais em tempo real.",
+      description:
+        "Agende, acompanhe e gerencie visitas pastorais em tempo real.",
       buttonText: "Acessar Agendamento",
-      iconPath: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
+      iconPath:
+        "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
       bgColor: "bg-green-500/20",
       textColor: "text-green-300",
       shadowColor: "shadow-green-500/30",
-      hoverColor: "hover:bg-green-300"
+      hoverColor: "hover:bg-green-300",
     },
     {
       id: "mensagens",
@@ -84,11 +88,12 @@ const PastorDashboard: React.FC = () => {
       subtitle: "Notificações live",
       description: "Sistema de mensagens e comunicação com os visitantes.",
       buttonText: "Acessar Mensagens",
-      iconPath: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
+      iconPath:
+        "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
       bgColor: "bg-purple-500/20",
       textColor: "text-purple-300",
       shadowColor: "shadow-purple-500/30",
-      hoverColor: "hover:bg-purple-300"
+      hoverColor: "hover:bg-purple-300",
     },
     {
       id: "relatorios",
@@ -96,12 +101,13 @@ const PastorDashboard: React.FC = () => {
       subtitle: "Dados atualizados",
       description: "Relatórios detalhados e análises do ministério pastoral.",
       buttonText: "Acessar Relatórios",
-      iconPath: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+      iconPath:
+        "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
       bgColor: "bg-emerald-500/20",
       textColor: "text-emerald-300",
       shadowColor: "shadow-emerald-500/30",
-      hoverColor: "hover:bg-emerald-300"
-    }
+      hoverColor: "hover:bg-emerald-300",
+    },
   ];
 
   // Configuração das estatísticas
@@ -110,26 +116,26 @@ const PastorDashboard: React.FC = () => {
       value: stats.totalVisitantes,
       label: "Total Visitantes",
       color: "text-blue-400",
-      key: "totalVisitantes"
+      key: "totalVisitantes",
     },
     {
       value: stats.novosMembros,
       label: "Novos Membros",
       color: "text-green-400",
-      key: "novosMembros"
+      key: "novosMembros",
     },
     {
       value: stats.emDiscipulado,
       label: "Em Discipulado",
       color: "text-purple-400",
-      key: "emDiscipulado"
+      key: "emDiscipulado",
     },
     {
       value: stats.cultosRealizados,
       label: "Cultos Realizados",
       color: "text-emerald-400",
-      key: "cultosRealizados"
-    }
+      key: "cultosRealizados",
+    },
   ];
 
   // Carregar estatísticas pastorais
@@ -139,7 +145,7 @@ const PastorDashboard: React.FC = () => {
     try {
       const [visitantesResponse, visitasResponse] = await Promise.all([
         supabase.from("visitantes").select("*"),
-        supabase.from("visitas").select("*")
+        supabase.from("visitas").select("*"),
       ]);
 
       if (visitantesResponse.data) {
@@ -148,14 +154,17 @@ const PastorDashboard: React.FC = () => {
 
         const statsData = {
           totalVisitantes: visitantes.length,
-          novosMembros: visitantes.filter((v) => v.status === "Novo Membro").length,
-          emDiscipulado: visitantes.filter((v) => v.status === "Visitado").length,
-          cultosRealizados: visitas.filter((v) => v.status === "Realizada").length,
+          novosMembros: visitantes.filter((v) => v.status === "Novo Membro")
+            .length,
+          emDiscipulado: visitantes.filter((v) => v.status === "Visitado")
+            .length,
+          cultosRealizados: visitas.filter((v) => v.status === "Realizada")
+            .length,
         };
         setStats(statsData);
       }
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
+      console.error("Erro ao carregar estatísticas:", error);
     } finally {
       setLoading(false);
     }
@@ -168,29 +177,33 @@ const PastorDashboard: React.FC = () => {
     // Configurar subscriptions em tempo real
     const subscriptions = [
       {
-        channel: 'visitantes-changes',
-        table: 'visitantes'
+        channel: "visitantes-changes",
+        table: "visitantes",
       },
       {
-        channel: 'visitas-changes',
-        table: 'visitas'
-      }
-    ].map(({ channel, table }) => 
+        channel: "visitas-changes",
+        table: "visitas",
+      },
+    ].map(({ channel, table }) =>
       supabase
         .channel(channel)
-        .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table
-        }, (payload) => {
-          console.log(`Mudança detectada na tabela ${table}:`, payload);
-          loadStats();
-        })
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table,
+          },
+          (payload) => {
+            console.log(`Mudança detectada na tabela ${table}:`, payload);
+            loadStats();
+          }
+        )
         .subscribe()
     );
 
     return () => {
-      subscriptions.forEach(sub => sub.unsubscribe());
+      subscriptions.forEach((sub) => sub.unsubscribe());
     };
   }, [loadStats]);
 
@@ -205,27 +218,32 @@ const PastorDashboard: React.FC = () => {
   };
 
   // Componente reutilizável para cards do dashboard
-  const DashboardCardComponent: React.FC<{ card: DashboardCard }> = ({ card }) => (
+  const DashboardCardComponent: React.FC<{ card: DashboardCard }> = ({
+    card,
+  }) => (
     <div className="rounded-xl border border-cyan-500/30 bg-slate-800/60 shadow-lg shadow-black/20 p-6 hover:bg-slate-800/80 transition-colors">
       <div className="flex items-center gap-4 mb-4">
-        <div className={`w-12 h-12 rounded-xl ${card.bgColor} ${card.textColor} grid place-items-center`}>
+        <div
+          className={`w-12 h-12 rounded-xl ${card.bgColor} ${card.textColor} grid place-items-center`}
+        >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
             <path d={card.iconPath} />
           </svg>
         </div>
         <div>
-          <h2 className="text-white text-xl font-semibold">
-            {card.title}
-          </h2>
+          <h2 className="text-white text-xl font-semibold">{card.title}</h2>
           <p className="text-slate-400 text-sm">{card.subtitle}</p>
         </div>
       </div>
-      <p className="text-slate-300 text-sm mb-4">
-        {card.description}
-      </p>
+      <p className="text-slate-300 text-sm mb-4">{card.description}</p>
       <button
         onClick={() => handleCardClick(card.id)}
-        className={`w-full px-4 py-3 rounded-lg ${card.bgColor.replace('/20', '-400')} text-slate-900 font-bold shadow-md ${card.shadowColor} ${card.hoverColor} transition-colors`}
+        className={`w-full px-4 py-3 rounded-lg ${card.bgColor.replace(
+          "/20",
+          "-400"
+        )} text-slate-900 font-bold shadow-md ${card.shadowColor} ${
+          card.hoverColor
+        } transition-colors`}
       >
         {card.buttonText}
       </button>
@@ -236,7 +254,12 @@ const PastorDashboard: React.FC = () => {
   const StatCardComponent: React.FC<{ stat: StatCard }> = ({ stat }) => (
     <div className="rounded-xl border border-slate-700 bg-slate-800/40 p-4 text-center relative">
       {loading && (
-        <div className={`absolute top-2 right-2 w-2 h-2 ${stat.color.replace('text-', 'bg-')} rounded-full animate-pulse`}></div>
+        <div
+          className={`absolute top-2 right-2 w-2 h-2 ${stat.color.replace(
+            "text-",
+            "bg-"
+          )} rounded-full animate-pulse`}
+        ></div>
       )}
       <div className={`text-2xl font-bold ${stat.color}`}>
         {loading ? "..." : stat.value}
@@ -251,7 +274,7 @@ const PastorDashboard: React.FC = () => {
       dados: <DadosVisitantesView onBack={handleBackToDashboard} />,
       agendamento: <AgendamentoVisitasView onBack={handleBackToDashboard} />,
       mensagens: <EnvioMensagensView onBack={handleBackToDashboard} />,
-      relatorios: <RelatoriosView onBack={handleBackToDashboard} />
+      relatorios: <RelatoriosView onBack={handleBackToDashboard} />,
     };
 
     if (activeView !== "dashboard") {
@@ -263,16 +286,18 @@ const PastorDashboard: React.FC = () => {
         {/* Header com Toggle de Tema */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-white text-3xl font-bold">
-              Dashboard Pastoral
-            </h1>
-            <div className="mt-3 p-4 rounded-lg bg-slate-800/40 border border-slate-700/50">
-              <p className="text-slate-300 text-sm italic text-center">
-                "E tudo quanto fizerdes, fazei-o de todo o coração, como ao Senhor"
-              </p>
-              <p className="text-cyan-400 text-xs text-center mt-1 font-semibold">
-                Colossenses 3:23
-              </p>
+            <div className="flex items-center justify-between">
+              <h1 className="text-white text-3xl font-bold">
+                Dashboard Pastoral
+              </h1>
+              <div className="p-3 rounded-lg bg-slate-800/40 border border-slate-700/50">
+                <p className="text-slate-300 text-sm italic text-center leading-relaxed">
+                  "E tudo quanto fizerdes, fazei-o de todo o coração, como ao Senhor"
+                </p>
+                <p className="text-cyan-400 text-xs text-center mt-1 font-semibold">
+                  Colossenses 3:23
+                </p>
+              </div>
             </div>
             <p className="text-slate-400 text-lg mt-3">
               Sincronização em tempo real ativada 🔴

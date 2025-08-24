@@ -66,7 +66,7 @@ const LoginDashboard: React.FC = () => {
             <p className="text-slate-400 text-sm mt-1">Faça login para continuar</p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          <form onSubmit={handleLogin} className="space-y-4" autoComplete="off">
             <div>
               <label htmlFor="email" className="block text-slate-300 text-sm font-medium mb-2">
                 E-mail
@@ -76,9 +76,13 @@ const LoginDashboard: React.FC = () => {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                style={{ color: '#ffffff' }}
+                className="w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                style={{ color: '#ffffff !important', caretColor: '#ffffff' }}
                 placeholder="seu@email.com"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck="false"
                 required
               />
             </div>
@@ -92,9 +96,10 @@ const LoginDashboard: React.FC = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
-                style={{ color: '#ffffff' }}
+                className="w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+                style={{ color: '#ffffff !important', caretColor: '#ffffff' }}
                 placeholder="••••••••"
+                autoComplete="off"
                 required
               />
             </div>
